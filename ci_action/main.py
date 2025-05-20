@@ -70,7 +70,7 @@ def main():
     parser.add_argument('--noop', action='store_true', default=False,
                        help='No-op mode - exit immediately if set')
     # DO NOT SUBMIT: this must default to False before submission.
-    parser.add_argument('--environment_query', action='store_true', default=True,
+    parser.add_argument('--environment_query', action='store_true', default=False,
                        help='Similar to --noop, but will show the environment config')
     args = parser.parse_args()
 
