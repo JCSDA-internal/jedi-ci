@@ -27,7 +27,8 @@ test = [
 ]
 
 [tool.setuptools]
-packages = ["ci_action"]
+packages = ["ci_action", "ci_action.library"]
+package-dir = {"" = "."}
 
 [tool.pytest.ini_options]
 minversion = "6.0"
