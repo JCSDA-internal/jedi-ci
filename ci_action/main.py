@@ -94,18 +94,20 @@ def main():
     # been cloned into the github workspace directory.
     ci_config = ci_implementation.get_ci_config(target_repo_full_path)
     LOG.info(f"ci config:")
-    pprint.pprint(ci_config)
+    pretty_config = pprint.pformat(ci_config)
+    LOG.info(pretty_config)
 
     # Get environment attributes set by GitHub.
     env_config = ci_implementation.get_environment_config()
     LOG.info(f"Environment config:")
-    pprint.pprint(env_config)
+    pretty_config = pprint.pformat(env_config)
+    LOG.info(pretty_config)
 
     # Setup Git credentials before doing anything else
     setup_git_credentials(os.environ.get('JEDI_CI_TOKEN'))
 
     # Prepare and launch the CI test
-    prepare_and_launch_ci_test(
+    ci_implementation.prepare_and_launch_ci_test(
         environment_config=env_config,
         ci_config=ci_config,
         bundle_repo_path=os.path.join(workspace_dir, 'bundle'),

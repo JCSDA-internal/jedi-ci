@@ -3,6 +3,7 @@
 import os
 import json
 import base64
+import logging
 import yaml
 import concurrent.futures
 import email
@@ -22,6 +23,7 @@ from ci_action.library import github_client
 
 BUILD_ENVIRONMENTS = ['gcc', 'intel', 'gcc11']
 
+LOG = logging.getLogger("implementation")
 
 class TimeCheckpointer:
     def __init__(self):
@@ -120,7 +122,9 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
     )
     pr_group_map = pr_resolve.get_build_group_pr_map(test_annotations['build_group'])
     print('printing pr_group_map')
-    import pprint; pprint.pprint(pr_group_map)
+    import pprint
+    pr_group_map_pretty = pprint.pformat(pr_group_map)
+    LOG.info(pr_group_map_pretty)
 
     # Import the bundle file
     bundle_file = os.path.join(bundle_repo_path, 'CMakeLists.txt')
