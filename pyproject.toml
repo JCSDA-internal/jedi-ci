@@ -17,13 +17,17 @@ dependencies = [
     "pyjwt",
     "cryptography",
     "PyGithub>=1.58",
-    "boto3>=1.26"
+    "boto3>=1.26",
+    "pyyaml>=6"
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest>=6.0"
 ]
+
+[tool.setuptools]
+packages = ["ci_action"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

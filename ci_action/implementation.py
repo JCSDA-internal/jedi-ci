@@ -119,9 +119,12 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
         pr_payload=environment_config['pr_payload'],
     )
     pr_group_map = pr_resolve.get_build_group_pr_map(test_annotations['build_group'])
+    print('printing pr_group_map')
+    import pprint; pprint.pprint(pr_group_map)
 
     # Import the bundle file
     bundle_file = os.path.join(bundle_repo_path, 'CMakeLists.txt')
+    bundle_file_unittest = bundle_file
     bundle_original = os.path.join(bundle_repo_path, 'CMakeLists.txt.original')
     bundle_integration = os.path.join(bundle_repo_path, 'CMakeLists.txt.integration')
     with open(bundle_file, 'r') as f:
