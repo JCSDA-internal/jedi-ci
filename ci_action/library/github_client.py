@@ -29,14 +29,17 @@ import logging
 import os
 import random
 import time
+from functools import lru_cache
 
-from library import aws_client
+from ci_action.library import aws_client
 
 
 # The init_from_environment() acts as a singleton instantiator to reduce
 # duplication of API calls. Once that method is called, the client manager
 # object will be kept here.
 _GITHUB_ENVIRONMENT_CLIENT = None
+
+GITHUB_URI = "https://github.com/"
 
 
 class GitHubAppClientManager(object):
@@ -122,6 +125,8 @@ class GitHubAppClientManager(object):
         that if we add private repositories without an integration, then we
         will get authorization errors.
         """
+        if self._pat_client:
+            return self._pat_client
         owner = owner.lower()
         if owner in self._app_clients:
             return self._app_clients.get(owner.lower())
@@ -175,3 +180,33 @@ def create_check_runs(build_environment, repo, owner, trigger_commit, next_suffi
     integration_run = github_app.create_check_run(
         repo, owner, trigger_commit, integration_run_name)
     return {'unit': unit_run.id, 'integration': integration_run.id}
+
+
+@lru_cache(maxsize=1)
+def get_client():
+    """Lazily initialize and cache the GitHub client manager from environment."""
+    return GitHubAppClientManager.init_from_environment()
+
+
+def validate_github_uri(repo_uri: str) -> str:
+    if not repo_uri.startswith(GITHUB_URI) and repo_uri.endswith(".git"):
+        raise ValueError(
+            f'Uri for {repo_name} is invalid. It should containt '
+            f'{GITHUB_URI} and end in .git.')
+
+
+def get_fullname_from_github_uri(repo_uri: str) -> str:
+    """Converts https://github.com/org/repo.git or https://github.com/org/repo into org/repo."""
+    # Remove the GitHub URI prefix
+    repo_path = repo_uri[len(GITHUB_URI):]
+    # Remove .git suffix if present
+    if repo_path.endswith('.git'):
+        repo_path = repo_path[:-4]
+    return repo_path
+
+
+def get_repo_tuple_from_github_uri(repo_uri: str) -> str:
+    """Converts https://github.com/org/repo.git into a ("repo", "org") tuple."""
+    full_repo = get_fullname_from_github_uri(repo_uri)
+    org, repo = full_repo.split('/', 1)
+    return repo, org

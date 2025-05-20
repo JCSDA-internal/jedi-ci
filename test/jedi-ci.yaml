@@ -1,0 +1,10 @@
+---
+name: oops
+test_tag: oops
+uri: https://github.com/JCSDA-internal/oops.git
+branch: develop
+test_script: src/test_runner/run_tests_batch.sh
+cache_paths:
+  - module/oops
+  - oops
+cache_strategy: SIMPLE 

@@ -7,8 +7,10 @@ import os
 import time
 import functools
 
-SECRET_CLIENT = boto3.session.Session().client(service_name='secretsmanager')
-BATCH_CLIENT = boto3.session.Session().client(service_name='batch')
+@functools.lru_cache(maxsize=1)
+def get_batch_client():
+    """Lazily initialize and cache the GitHub client manager from environment."""
+    return boto3.session.Session().client(service_name='batch')
 
 def ttl_lru_cache(ttl, maxsize=100):
     """Least-recently-used (LRU) cache function decorator with time-to-live
@@ -48,7 +50,8 @@ def ttl_lru_cache(ttl, maxsize=100):
 @ttl_lru_cache(ttl=3600)  # Secrets expire after an hour.
 def get_secret_string(secret_arn):
     """Get a secret value from aws secret store."""
-    get_secret_value_response = SECRET_CLIENT.get_secret_value(
+    secret_client = boto3.session.Session().client(service_name='secretsmanager')
+    get_secret_value_response = secret_client.get_secret_value(
         SecretId=secret_arn
     )
     # Secrets Manager decrypts the secret value using the associated KMS CMK
@@ -130,7 +133,7 @@ def submit_test_batch_job(
     ):
     """Submit a CI batch job."""
     job_name = f'jedi-ci-{repo_name}-{pr}-{commit}-{config.build_environment}'
-    return BATCH_CLIENT.submit_job(
+    return get_batch_client().submit_job(
         jobName=job_name,
         jobQueue=config.job_queue,
         jobDefinition=config.job_definition,

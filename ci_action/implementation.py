@@ -2,11 +2,9 @@
 
 import os
 import json
-import urllib.parse
 import base64
+import yaml
 import concurrent.futures
-import hmac
-import hashlib
 import email
 import gzip
 import boto3
@@ -14,29 +12,13 @@ import botocore
 import botocore.session
 import random
 import time
-import traceback
-import tempfile
-import uuid
+import subprocess
 import zipfile
+import shutil
+from ci_action.library import aws_client
+from ci_action.library import pr_resolve
+from ci_action.library import github_client
 
-from library import aws_client
-from library import pr_resolve
-from library import github_client
-
-client = botocore.session.get_session().create_client('secretsmanager')
-s3 = boto3.client('s3')
-
-# This is a constructor for the configuration needed to submit AWS Batch jobs.
-# This constructor reads configuration from the environment and must be
-# configured via environmental variables set in the Lambda function. Note that
-# the timeout is set to is 4 hours since even a full cache rebuild should much
-# less time. For information on the config variables.
-BATCH_SUBMIT_ENV = aws_client.BatchSubmitConfigFromEnv(timeout=60*240)
-
-github_webhook_secret_arn = os.environ.get('GITHUB_WEBHOOK_SECRET_ARN')
-
-ACTIONABLE_ACTIONS = ['pull_request:opened', 'pull_request:synchronize']
-IGNORE_ACTIONS = ['check_run:completed', 'check_run:created']
 
 BUILD_ENVIRONMENTS = ['gcc', 'intel', 'gcc11']
 
@@ -52,142 +34,150 @@ class TimeCheckpointer:
         self._checkpoint_time = time_now
         return f'<time elapsed: {checkpoint_delta} seconds>'
 
-
-def lambda_handler(event, _context):
-    """Webhook function"""
-    headers = event.get('headers')
-
-    # Input validation; this lambda function handles a GitHub webhook event
-    # and expects a standard event json payload.
-    try:
-        json_payload = get_json_payload(event=event)
-    except ValueError as err:
-        traceback.print_exception(type(err), value=err, tb=err.__traceback__)
-        print_error(f'400 Bad Request - {err}', headers)
-        return {'statusCode': 400, 'body': str(err)}
-    except Exception as err:  # Unexpected Error
-        traceback.print_exception(type(err), value=err, tb=err.__traceback__)
-        print_error('500 Internal Server Error\n' +
-                    f'Unexpected error: {err}, {type(err)}', headers)
-        return {'statusCode': 500, 'body': 'Internal Server Error'}
-    # Validate webhook signature.
-    if not contains_valid_signature(event=event):
-        traceback.print_exception(type(err), value=err, tb=err.__traceback__)
-        print_error('401 Unauthorized - Invalid Signature', headers)
-        return {'statusCode': 401, 'body': 'Invalid Signature'}
-
-    # Process event.
-    detail_type = headers.get('x-github-event', 'github-webhook-lambda')
-    try:
-        process_event(json_payload, detail_type)
-        return {'statusCode': 202, 'body': 'Webhook processed'}
-    except Exception as err:  # Unexpected Error
-        traceback.print_exception(type(err), value=err, tb=err.__traceback__)
-        print_error('500 Internal Server Error\n' +
-                    f'Unexpected error: {err}, {type(err)}', headers)
-        return {'statusCode': 500, 'body': 'Internal Server Error'}
-
-
-def contains_valid_signature(event):
-    """Check for the payload signature
-       Github documention: https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks#validating-payloads-from-github
+def check_output(args, **kwargs):
     """
-    secret = aws_client.get_secret_string(github_webhook_secret_arn)
-    payload_bytes = get_payload_bytes(
-        raw_payload=event['body'], is_base64_encoded=event['isBase64Encoded'])
-    computed_signature = compute_signature(
-        payload_bytes=payload_bytes, secret=secret)
-
-    return hmac.compare_digest(event['headers'].get('x-hub-signature-256', ''), computed_signature)
+    Wrapper around subprocess.check_output that logs the command and its output.
+    """
+    LOG.info(f"Running command: {' '.join(args)}")
+    return subprocess.check_output(args, **kwargs)
 
 
-def get_payload_bytes(raw_payload, is_base64_encoded):
-    """Get payload bytes to feed hash function"""
-    if is_base64_encoded:
-        return base64.b64decode(raw_payload)
-    else:
-        return raw_payload.encode()
-
-
-def compute_signature(payload_bytes, secret):
-    """Compute HMAC-SHA256"""
-    m = hmac.new(key=secret.encode(), msg=payload_bytes,
-                 digestmod=hashlib.sha256)
-    return 'sha256=' + m.hexdigest()
-
-
-def get_json_payload(event):
-    """Get JSON string from payload"""
-    content_type = get_content_type(event.get('headers', {}))
-    if not (content_type == 'application/json' or
-            content_type == 'application/x-www-form-urlencoded'):
-        raise ValueError(f'Unsupported content-type: {content_type}')
-
-    raw_payload = event.get('body')
-    if raw_payload is None:
-        raise ValueError('Missing event body')
-    payload = raw_payload
-    if event['isBase64Encoded']:
-        payload = base64.b64decode(raw_payload).decode('utf-8')
-
-    if content_type == 'application/x-www-form-urlencoded':
-        parsed_qs = urllib.parse.parse_qs(payload)
-        if 'payload' not in parsed_qs or len(parsed_qs['payload']) != 1:
-            raise ValueError('Invalid urlencoded payload')
-        payload = parsed_qs['payload'][0]
-
-    try:
-       payload = json.loads(payload)
-    except ValueError as err:
-        raise ValueError('Invalid JSON payload') from err
-
-    return payload
-
-
-def upload_to_aws(json_data, s3_file):
+def upload_to_aws(s3_client, json_data, s3_file):
     """Upload file to S3 bucket"""
     if isinstance(json_data, str):
         json_data = json_data.encode('utf-8')
     bucket = os.environ['BUCKET_NAME']
-    s3.put_object(Body=json_data, Bucket=bucket, Key=s3_file)
+    s3_client.put_object(Body=json_data, Bucket=bucket, Key=s3_file)
     s3_path = f's3://{bucket}/{s3_file}'
     return s3_path
 
 
-def process_event(payload, detail_type):
+def get_ci_config(target_repo_path):
+    """Get the CI config from the target repository."""
+    # get the CI config yaml from the target repository
+    ci_config_path = os.path.join(target_repo_path, 'jedi-ci.yaml')
+    if not os.path.exists(ci_config_path):
+        raise EnvironmentError(f"jedi-ci.yaml not found in {target_repo_path}")
+    # Open and parse the CI config yaml
+    with open(ci_config_path, 'r') as f:
+        ci_config = yaml.safe_load(f)
+
+    # Validate required fields.
+    required_fields = ['bundle_repository', 'bundle_branch', 'test_script', 'name', 'test_tag', 'bundle_name']
+    for field in required_fields:
+        if field not in ci_config:
+            raise ValueError(f"Required field {field} not found in {ci_config_path}")
+
+    return ci_config
+
+
+def get_environment_config():
+    """Use the environment variable to get the environment config."""
+    repository = os.environ.get('GITHUB_REPOSITORY')
+    owner, repo_name = repository.split('/')
+    github_event_path = os.environ.get('GITHUB_EVENT_PATH')
+    with open(github_event_path, 'r') as f:
+        event = json.load(f)
+
+    if event.get('pull_request'):
+        branch_name = event['pull_request']['head']['ref']
+        pull_request_number = event['pull_request'].get('number', -1)
+        pr_payload = event['pull_request']
+        trigger_commit = event['pull_request'].get('head', {}).get('sha', '')
+    else:
+        raise ValueError(f'No pull request found in event; {event}')
+
+    config = {
+        'repository': repository,
+        'owner': owner,
+        'repo_name': repo_name,
+        'clone_url': f'https://github.com/{repository}.git',
+        'github_event_path': github_event_path,
+        'branch_name': branch_name,
+        'pull_request_number': pull_request_number,
+        'pr_payload': pr_payload,
+        'trigger_commit': trigger_commit,
+    }
+    return config
+
+def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, target_repo_path):
+    """The main function that will be called to prepare and launch the CI test.
+    
+    This is similart to the process_event function, which was used by the lambda
+    CI actuator but has been adapted for the Github-based Action CI.
+    """
+    # Use got to clone the bundle repository into the bundle_repo_path using
+    # bundle_repository and bundle_branch
+    if not os.path.exists(bundle_repo_path):
+        LOG.info(f"Cloning bundle repository into {bundle_repo_path}")
+        check_output(['git', 'clone', '--branch', ci_config['bundle_branch'], ci_config['bundle_repository'], bundle_repo_path])
+
+    # Fetch config from the pull request data
+    test_annotations = pr_resolve.read_test_annotations(
+        repo_uri=ci_config['bundle_repository'],
+        pr_number=environment_config['pull_request_number'],
+        pr_payload=environment_config['pr_payload'],
+    )
+    pr_group_map = pr_resolve.get_build_group_pr_map(test_annotations['build_group'])
+
+    # Import the bundle file
+    bundle_file = os.path.join(bundle_repo_path, 'CMakeLists.txt')
+    bundle_original = os.path.join(bundle_repo_path, 'CMakeLists.txt.original')
+    bundle_integration = os.path.join(bundle_repo_path, 'CMakeLists.txt.integration')
+    with open(bundle_file, 'r') as f:
+        bundle = cmake_rewrite.CMakeFile(f.read())
+
+    # Move the original bundle file to the original file.
+    shutil.move(bundle_file, bundle_original)
+
+    # Rewrite the bundle cmake file twice
+
+    # Zip the new bundle.
+
+    # Upload the bundle to S3.
+
+    # Launch the test
+
+    # Write test lock file
+
+    # check the lock file and cancel old jobs for PR
+    # TODO: this will not be included in first pass.
+
+    # write the test github check runs to the PR.
+
+    # close as success.
+
+
+
+
+
+def process_event(event_config, ci_config):
     """Create file for S3 bucket"""
     timer = TimeCheckpointer()
-    trigger_repo = payload['repository']['full_name']
-    trigger_repo_uri = payload['repository']['clone_url']
-    owner, repo_name = trigger_repo.split('/')
-    action = payload.get('action', '')
-    detail_action = f'{detail_type}:{action}'
-    print(f'Event: {detail_type}. Action: {action}. Repo: {trigger_repo}')
+    trigger_repo = event_config['repository']
+    trigger_repo_uri = event_config['clone_url']
+    owner = event_config['owner']
+    repo_name = event_config['repo_name']
+    pull_request_number = event_config['pull_request_number']
+    trigger_commit = event_config['trigger_commit']
+
+    # Set up clients.
+    # This is a constructor for the configuration needed to submit AWS Batch jobs.
+    batch_submit_env = aws_client.BatchSubmitConfigFromEnv(timeout=60*240)
+    # S3 client is currently not used.
+    #s3_client = boto3.client('s3')
 
     # vars that must be pulled from the event.
     branch_name = ''
     pull_request_number = -1
     pr_payload = None
 
-    if detail_action in ACTIONABLE_ACTIONS and detail_type == 'pull_request':
-        branch_name = payload['pull_request']['head']['ref']
-        pull_request_number = payload['pull_request']['number']
-        pr_payload = payload['pull_request']
-        trigger_commit = payload['pull_request']['head']['sha']
-    elif detail_action in IGNORE_ACTIONS:  # Known events with no action.
-        print(f'Ignoring {trigger_repo}: event "{detail_type}:{action}"')
-        return
-    else:  # These are unknown events.
-        print(f'No processor for event "{detail_type}" with action "{action}"')
-        print(f'{payload}')
-        return
 
-    if pull_request_number <= 0:
-        print(f'{detail_type} event on {branch_name} found no associated PR')
-        print(f'{payload}')
-        return
+    if pull_request_number <= 0 or not trigger_commit:
+        print(f'Found no associated PR or trigger commit')
+        print(f'{event_config}')
+        raise ValueError('bad config, check logs.')
 
-    print(f'Evaluated Git event. {timer.checkpoint()}')
     build_info_payload, run_tests, test_select, build_env_suffix = pr_resolve.get_prs(
         trigger_repo=repo_name,
         trigger_uri=trigger_repo_uri,
@@ -261,7 +251,7 @@ def process_event(payload, detail_type):
             # job takes the build info json file as an argument and this file
             # configures the build.
             job = aws_client.submit_test_batch_job(
-                config=BATCH_SUBMIT_ENV.get_config(build_environment + build_env_suffix),
+                config=batch_submit_env.get_config(build_environment + build_env_suffix),
                 repo_name=repo_name,
                 commit=short_commit,
                 pr=pull_request_number,
