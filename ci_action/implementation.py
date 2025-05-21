@@ -127,10 +127,10 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
     annotations_pretty = pprint.pformat(test_annotations)
     LOG.info(annotations_pretty)
 
-    build_group_map = test_annotations.build_group_map
-    print('printing build_group_map')
-    build_group_map_pretty = pprint.pformat(build_group_map)
-    LOG.info(build_group_map_pretty)
+    repo_to_commit_hash = pr_resolve.gather_build_group_hashes(test_annotations.build_group_map)
+    print('printing repo_to_commit_hash')
+    repo_to_commit_hash_pretty = pprint.pformat(repo_to_commit_hash)
+    LOG.info(repo_to_commit_hash_pretty)
 
     # Import the bundle file
     bundle_file = os.path.join(bundle_repo_path, 'CMakeLists.txt')

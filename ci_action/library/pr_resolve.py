@@ -221,10 +221,11 @@ def get_build_group_pr_map(build_group_members):
     return pr_map
 
 
-def gather_pr_group(pr_group_map):
+def gather_build_group_hashes(build_group_mapping):
+    """Colects the commit hash for each repository in the build group."""
     pr_group_map_out = {}
 
-    for repo_name_key, pr_number in pr_group_map.items():
+    for repo_name_key, pr_number in build_group_mapping.items():
         org, repo = repo_name_key.split('/')
         grepo = github_client.get_client().get_repository(repo, org)
         pr = grepo.get_pull(pr_number)
