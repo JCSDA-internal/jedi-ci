@@ -125,10 +125,10 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
     annotations_pretty = pprint.pformat(test_annotations)
     LOG.info(annotations_pretty)
 
-    pr_group_map = pr_resolve.get_build_group_pr_map(test_annotations['build_group'])
-    print('printing pr_group_map')
-    pr_group_map_pretty = pprint.pformat(pr_group_map)
-    LOG.info(pr_group_map_pretty)
+    build_group_map = test_annotations.build_group_map
+    print('printing build_group_map')
+    build_group_map_pretty = pprint.pformat()
+    LOG.info(build_group_map_pretty)
 
     # Import the bundle file
     bundle_file = os.path.join(bundle_repo_path, 'CMakeLists.txt')
