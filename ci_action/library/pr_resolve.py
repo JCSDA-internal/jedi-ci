@@ -99,9 +99,10 @@ class TestAnnotations(NamedTuple):
 
 
 def read_test_annotations(
-        ci_config: Mapping[str, Any],
+        repo_uri: str,
         pr_number: int,
         pr_payload: Union[Mapping[str, Any], None],
+        testmode: bool,
         build_group_regex=BUILD_GROUP_RE,
         cache_regex=CACHE_BEHAVIOR_RE,
         draft_regex=DRAFT_PR_RUN_RE,
@@ -117,9 +118,6 @@ def read_test_annotations(
     request description or set to the default.
     """
     # Get the PR description if it was not provided by the caller.
-    repo_uri = ci_config['bundle_repository']
-    testmode = ci_config.get('test_mode', None) == 'SELF_TEST_JEDI_CI'
-
     if not pr_payload:
         github_client.validate_github_uri(repo_uri=repo_uri)
         repo, org = github_client.get_repo_tuple_from_github_uri(repo_uri=repo_uri)
