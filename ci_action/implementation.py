@@ -127,7 +127,7 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
 
     build_group_map = test_annotations.build_group_map
     print('printing build_group_map')
-    build_group_map_pretty = pprint.pformat()
+    build_group_map_pretty = pprint.pformat(build_group_map)
     LOG.info(build_group_map_pretty)
 
     # Import the bundle file

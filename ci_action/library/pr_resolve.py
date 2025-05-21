@@ -9,6 +9,8 @@ import github
 from ci_action.library import github_client
 from ci_action.library import aws_client
 
+import logging
+LOG = logging.getLogger("pr_resolve")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -115,6 +117,8 @@ def read_test_annotations(
         pr_body = pr_payload["body"]
     else:
         pr_body = pr_payload["body"]
+
+    LOG.info(f'pr_body: {pr_body}')
     # GitHub may use windows newlines (\r\n), this swap here ensures that no
     # matter what newline type is returned, the text is evaluated with standard
     # newlines.
@@ -122,6 +126,7 @@ def read_test_annotations(
     # Build Group
     build_group_members = []
     build_group_matches = build_group_regex.findall(pr_body)
+    LOG.info(f'build_group_matches: {build_group_matches}')
     for group_match in build_group_matches:
         build_group_members.append(group_match)
     print(f'Intermediate group matches: {build_group_members}')
