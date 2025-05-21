@@ -7,7 +7,6 @@ required a more complex app-integration client
 """
 import datetime
 import github
-import jwt
 import logging
 import os
 import random
@@ -16,6 +15,7 @@ from functools import lru_cache
 
 from ci_action.library import aws_client
 
+LOG = logging.getLogger("github_client")
 
 GITHUB_URI = "https://github.com/"
 
@@ -43,6 +43,7 @@ class GitHubAppClientManager(object):
 
     def __init__(self, personal_access_token: str):
         """Initialize the GitHubAppClientManager."""
+        LOG.info(f'Initializing GitHubAppClientManager with personal_access_token, string of length {len(personal_access_token)}')
         if not personal_access_token:
             raise ValueError("argument personal_access_token is required and must be a non-empty string")
         self.client = github.Github(personal_access_token)
@@ -67,6 +68,7 @@ class GitHubAppClientManager(object):
         return repo.get_pulls(state='open')
 
     def get_repository(self, repo, owner):
+        LOG.info(f'Fetching repository {owner}/{repo}')
         return self.client.get_repo(f'{owner}/{repo}')
 
     def create_check_run(self, repo, owner, commit, run_name):

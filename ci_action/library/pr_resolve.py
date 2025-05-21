@@ -9,7 +9,6 @@ import github
 from ci_action.library import github_client
 from ci_action.library import aws_client
 
-import logging
 LOG = logging.getLogger("pr_resolve")
 
 logging.basicConfig(level=logging.INFO)
