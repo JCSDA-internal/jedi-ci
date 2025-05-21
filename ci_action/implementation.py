@@ -144,6 +144,16 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
     shutil.move(bundle_file, bundle_original)
 
     # Rewrite the bundle cmake file twice
+    # First, rewrite the unit test bundle file with the build group commit hashes
+    with open(bundle_file_unittest, 'w') as f:
+        bundle.rewrite_whitelist(
+            file_object=f,
+            enabled_bundles=set(bundle.bundle_line_names.keys()),
+            build_group_commit_map=repo_to_commit_hash
+        )
+
+    # Create an integration test file (this is a copy of the file)
+    shutil.copy(bundle_file_unittest, bundle_integration)
 
     # Zip the new bundle.
 

@@ -21,7 +21,7 @@ CMakeFile class.
 """
 from dataclasses import dataclass
 from collections.abc import Container
-from typing import Optional
+from typing import Optional, Dict, Any
 import re
 
 from ci_action.library import github_client
@@ -184,12 +184,36 @@ class CMakeFile:
             file_object,
             enabled_bundles: Optional[Container[str]] = None,
             rewrite_rules: Optional[dict[str, str]] = None,
+            build_group_commit_map: Optional[Dict[str, Dict[str, Any]]] = None,
             ):
-        """Rewrite the CMakeFile object to the file_object."""
+        """Rewrite the CMakeFile object to the file_object.
+
+        Args:
+            file_object: The file to write to.
+            enabled_bundles: A container of bundle names to enable.
+            rewrite_rules: A mapping of bundle names to tags.
+            build_group_commit_map: A mapping of "org/repo" keys to build group commit info.
+                The build group commit info is a dictionary with the following structure:
+                {
+                    "name_key": "org/repo",
+                    "uri": "https://github.com/org/repo.git",
+                    "version_ref": {
+                        "pr_id": 123,
+                        "branch": "feature-branch",
+                        "commit": "abcdef123456"
+                    }
+                }
+        """
         if enabled_bundles is None:
             enabled_bundles = set()
         if rewrite_rules is None:
             rewrite_rules = {}
+        if build_group_commit_map is None:
+            build_group_commit_map = {}
+
+        # Ensure rewrite_rules and build_group_commit_map are mutually exclusive
+        if rewrite_rules and build_group_commit_map:
+            raise ValueError("rewrite_rules and build_group_commit_map cannot both be provided")
 
         lines = []
         for i, line in enumerate(self.lines):
@@ -204,11 +228,20 @@ class CMakeFile:
                 lines.append(bundle_line.disabled_line() + '\n')
                 continue
 
+            # Check if this bundle matches a github org/repo key in the build group commit map
+            if bundle_line.github_org_repo_key and bundle_line.github_org_repo_key in build_group_commit_map:
+                # Use the commit hash as a tag
+                commit_info = build_group_commit_map[bundle_line.github_org_repo_key]
+                commit_hash = commit_info["version_ref"]["commit"]
+                lines.append(bundle_line.rewrite(tag=commit_hash) + '\n')
+                continue
+
             # If the line has a rewrite rule, use it.
             if bundle_line.project_name in rewrite_rules:
                 tag = rewrite_rules[bundle_line.project_name]
                 lines.append(bundle_line.rewrite(tag=tag) + '\n')
                 continue
+
             # Finally if the line is enabled and has no rewrite, use the original line.
             lines.append(bundle_line.original_line() + '\n')
         
@@ -236,3 +269,20 @@ class CMakeFile:
         for bundle in disabled_bundles:
             enabled_bundles.discard(bundle)
         self._rewrite_file_implementation(file_object, enabled_bundles, rewrite_rules)
+
+    def rewrite_build_group_whitelist(self,
+                                      file_object,
+                                      enabled_bundles: Container[str],
+                                      build_group_commit_map: Dict[str, Dict[str, Any]]):
+        """Rewrite the CMakeFile object to the file_object."""
+        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)
+
+    def rewrite_build_group_blacklist(self,
+                                      file_object,
+                                      disabled_bundles: Container[str],
+                                      build_group_commit_map: Dict[str, Dict[str, Any]]):
+        """Rewrite the CMakeFile object to the file_object."""
+        enabled_bundles = set(self.bundle_line_names.keys())
+        for bundle in disabled_bundles:
+            enabled_bundles.discard(bundle)
+        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)

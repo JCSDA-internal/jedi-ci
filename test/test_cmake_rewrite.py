@@ -149,6 +149,97 @@ class TestCMakeFile(unittest.TestCase):
         self.assertEqual(found_bundle_line.project_name, 'oops')
         self.assertMultiLineEqual(fake_file.getvalue(), expected)
     
+    def test_rewrite_build_group_whitelist(self):
+        cmake_file = CMakeFile('# File header\necbuild_bundle( PROJECT oops     GIT "https://github.com/jcsda-internal/oops.git"       BRANCH develop UPDATE )\n')
+        expected = '# File header\necbuild_bundle( PROJECT oops GIT "https://github.com/jcsda-internal/oops.git" TAG abcdef123456 )\n'
+        fake_file = StringIO()
+
+        # Create a build group commit map with the jcsda-internal/oops repository
+        build_group_map = {
+            'jcsda-internal/oops': {
+                'name_key': 'jcsda-internal/oops',
+                'uri': 'https://github.com/jcsda-internal/oops.git',
+                'version_ref': {
+                    'pr_id': 123,
+                    'branch': 'feature-branch',
+                    'commit': 'abcdef123456'
+                }
+            }
+        }
+
+        cmake_file.rewrite_build_group_whitelist(
+            file_object=fake_file,
+            enabled_bundles=set(['oops']),
+            build_group_commit_map=build_group_map
+        )
+
+        found_bundle_line = cmake_file.bundle_line_names['oops']
+        self.assertIsInstance(found_bundle_line, BundleLine)
+        self.assertEqual(found_bundle_line.project_name, 'oops')
+        self.assertEqual(found_bundle_line.github_org_repo_key, 'jcsda-internal/oops')
+        self.assertMultiLineEqual(fake_file.getvalue(), expected)
+
+    def test_rewrite_build_group_whitelist_multiple(self):
+        cmake_file = CMakeFile('# File header\necbuild_bundle( PROJECT oops     GIT "https://github.com/jcsda-internal/oops.git"       BRANCH develop UPDATE )\necbuild_bundle( PROJECT pyiri-jedi  GIT     "https://github.com/jcsda-internal/pyiri-jedi.git"    BRANCH develop  UPDATE  RECURSIVE )\necbuild_bundle( PROJECT gsibec   GIT "https://github.com/geos-esm/GSIbec" TAG 1.2.1 )\n')
+        expected = '# File header\necbuild_bundle( PROJECT oops GIT "https://github.com/jcsda-internal/oops.git" TAG abc123456 )\necbuild_bundle( PROJECT pyiri-jedi GIT "https://github.com/jcsda-internal/pyiri-jedi.git" TAG fedcba654321 RECURSIVE )\n# ecbuild_bundle( PROJECT gsibec   GIT "https://github.com/geos-esm/GSIbec" TAG 1.2.1 )\n'
+        fake_file = StringIO()
+
+        # Create a build group commit map with multiple repositories
+        build_group_map = {
+            'jcsda-internal/oops': {
+                'name_key': 'jcsda-internal/oops',
+                'uri': 'https://github.com/jcsda-internal/oops.git',
+                'version_ref': {
+                    'pr_id': 123,
+                    'branch': 'feature-branch',
+                    'commit': 'abc123456'
+                }
+            },
+            'jcsda-internal/pyiri-jedi': {
+                'name_key': 'jcsda-internal/pyiri-jedi',
+                'uri': 'https://github.com/jcsda-internal/pyiri-jedi.git',
+                'version_ref': {
+                    'pr_id': 456,
+                    'branch': 'feature-branch',
+                    'commit': 'fedcba654321'
+                }
+            }
+        }
+
+        cmake_file.rewrite_build_group_whitelist(
+            file_object=fake_file,
+            enabled_bundles=set(['oops', 'pyiri-jedi']),
+            build_group_commit_map=build_group_map
+        )
+        self.assertMultiLineEqual(fake_file.getvalue(), expected)
+
+    def test_rewrite_build_group_blacklist(self):
+        """This test disables oops and updates pyiri-jedi to a new tag."""
+        cmake_file = CMakeFile('# File header\necbuild_bundle( PROJECT oops     GIT "https://github.com/jcsda-internal/oops.git"  BRANCH develop UPDATE )\necbuild_bundle( PROJECT pyiri-jedi  GIT     "https://github.com/jcsda-internal/pyiri-jedi.git"    BRANCH develop  UPDATE  RECURSIVE )\n')
+        expected = '# File header\n# ecbuild_bundle( PROJECT oops     GIT "https://github.com/jcsda-internal/oops.git"  BRANCH develop UPDATE )\necbuild_bundle( PROJECT pyiri-jedi GIT "https://github.com/jcsda-internal/pyiri-jedi.git" TAG c0ffeec0de RECURSIVE )\n'
+        fake_file = StringIO()
+
+        # Create a build group commit map with the jcsda-internal/pyiri-jedi repository
+        build_group_map = {
+            'jcsda-internal/pyiri-jedi': {
+                'name_key': 'jcsda-internal/pyiri-jedi',
+                'uri': 'https://github.com/jcsda-internal/pyiri-jedi.git',
+                'version_ref': {
+                    'pr_id': 456,
+                    'branch': 'feature-branch',
+                    'commit': 'c0ffeec0de'
+                }
+            }
+        }
+
+        cmake_file.rewrite_build_group_blacklist(
+            file_object=fake_file,
+            disabled_bundles=set(['oops']),
+            build_group_commit_map=build_group_map
+        )
+
+        self.assertMultiLineEqual(fake_file.getvalue(), expected)
+
     def test_rewrite_file_simple_disable(self):
         cmake_file = CMakeFile('# File header\necbuild_bundle( PROJECT oops GIT "https://github.com/jcsda-internal/oops.git" BRANCH develop UPDATE )\n')
         expected = '# File header\n# ecbuild_bundle( PROJECT oops GIT "https://github.com/jcsda-internal/oops.git" BRANCH develop UPDATE )\n'
