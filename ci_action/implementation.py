@@ -45,13 +45,12 @@ def check_output(args, **kwargs):
     return subprocess.check_output(args, **kwargs)
 
 
-def upload_to_aws(s3_client, json_data, s3_file):
+def upload_to_aws(bucket_name, s3_client, json_data, s3_file):
     """Upload file to S3 bucket"""
     if isinstance(json_data, str):
         json_data = json_data.encode('utf-8')
-    bucket = os.environ['BUCKET_NAME']
-    s3_client.put_object(Body=json_data, Bucket=bucket, Key=s3_file)
-    s3_path = f's3://{bucket}/{s3_file}'
+    s3_client.put_object(Body=json_data, Bucket=bucket_name, Key=s3_file)
+    s3_path = f's3://{bucket_name}/{s3_file}'
     return s3_path
 
 

@@ -42,17 +42,6 @@ MANIFEST_BRANCH_RE = re.compile(
     r'^jedi-ci-manifest-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)
 
 
-@aws_client.ttl_lru_cache(ttl=5*60)
-def get_test_manifest(branch_arg: str, manifest_path: str = 'test_manifest.json'):
-    # Default branch used if the test description did not override this.
-    branch_name = os.environ.get('GITHUB_CI_REPO_BRANCH', 'develop')
-    if branch_arg:
-        branch_name = branch_arg
-    repo = github_client.get_client().get_repository('CI', 'JCSDA-internal')
-    contents = repo.get_contents(manifest_path, ref=branch_name)
-    json_content =  json.loads(contents.decoded_content)
-    return json_content
-
 
 class TestAnnotations(NamedTuple):
     # A dict mapping repository names to pull request numbers. This map is
