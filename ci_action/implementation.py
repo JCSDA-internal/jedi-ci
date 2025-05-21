@@ -16,9 +16,11 @@ import time
 import subprocess
 import zipfile
 import shutil
+
 from ci_action.library import aws_client
-from ci_action.library import pr_resolve
+from ci_action.library import cmake_rewrite
 from ci_action.library import github_client
+from ci_action.library import pr_resolve
 
 import pprint
 
