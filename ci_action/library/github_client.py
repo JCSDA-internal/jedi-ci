@@ -49,7 +49,13 @@ class GitHubAppClientManager(object):
         self.client = github.Github(personal_access_token)
 
     @classmethod
-    def init_from_environment(cls):        # If environment variable GITHUB_TOKEN is set, use it as a personal access token
+    def init_from_environment(cls):
+        # If environment variable JEDI_CI_TOKEN is set, use it to create a client.
+        # This is the preferred token used in the GitHub Action workflow.
+        if 'JEDI_CI_TOKEN' in os.environ:
+            return cls(personal_access_token=os.environ['JEDI_CI_TOKEN'])
+
+        # If environment variable GITHUB_TOKEN is set, use it to create a client.
         if 'GITHUB_TOKEN' in os.environ:
             return cls(personal_access_token=os.environ['GITHUB_TOKEN'])
 
