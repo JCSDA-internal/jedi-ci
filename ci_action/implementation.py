@@ -72,6 +72,13 @@ def get_ci_config(target_repo_path):
         if field not in ci_config:
             raise ValueError(f"Required field {field} not found in {ci_config_path}")
 
+    # Validate optional fields.
+    optional_field_defaults = {
+        'unittest': [],
+    }
+    for field, default in optional_field_defaults.items():
+        if field not in ci_config:
+            ci_config[field] = default
     return ci_config
 
 
@@ -146,16 +153,28 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
     # Rewrite the bundle cmake file twice
     # First, rewrite the unit test bundle file with the build group commit hashes
     with open(bundle_file_unittest, 'w') as f:
-        bundle.rewrite_whitelist(
+        bundle.rewrite_build_group_whitelist(
             file_object=f,
-            enabled_bundles=set(bundle.bundle_line_names.keys()),
-            build_group_commit_map=repo_to_commit_hash
+            enabled_bundles=ci_config['unittest'],
+            build_group_commit_map=repo_to_commit_hash,
         )
 
-    # Create an integration test file (this is a copy of the file)
-    shutil.copy(bundle_file_unittest, bundle_integration)
+    # Create an integration test file.
+    with open(bundle_integration, 'w') as f:
+        bundle.rewrite_build_group_blacklist(
+            file_object=f,
+            disabled_bundles=set(),
+            build_group_commit_map=repo_to_commit_hash,
+        )
 
     # Zip the new bundle.
+    # Create a tarball of the bundle repository
+    LOG.info(f"Creating bundle.tar.gz from {bundle_repo_path}")
+    bundle_tarball = "bundle.tar.gz"
+
+    # Use tar to create a gzipped tarball of the bundle repository
+    check_output(['tar', '-czf', bundle_tarball, '-C', os.path.dirname(bundle_repo_path), os.path.basename(bundle_repo_path)])
+    LOG.info(f"Created bundle tarball at {bundle_tarball}")
 
     # Upload the bundle to S3.
 
