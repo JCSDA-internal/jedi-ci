@@ -292,21 +292,3 @@ def get_content_type(headers):
 def print_error(message, headers):
     """Helper function to print errors"""
     print(f'ERROR: {message}\nHeaders: {str(headers)}')
-
-
-if __name__ == '__main__':
-    if os.environ.get('LAMBDA_TEST_GET_PRS'):
-        print(pr_resolve.get_prs('oops', 2179))
-    elif os.environ.get('TEST_GITHUB_EVENT_JSON'):
-        event_json_file = os.environ.get('TEST_GITHUB_EVENT_JSON')
-        with open(event_json_file, 'r') as f:
-            raw_struct = f.read()
-        event = {
-            'isBase64Encoded': False,
-            'body': raw_struct,
-            'headers': {
-                'x-github-event': 'pull_request',
-                'content-type': 'application/json',
-            },
-        }
-        lambda_handler(event, None)

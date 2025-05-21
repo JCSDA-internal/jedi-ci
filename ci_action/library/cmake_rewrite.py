@@ -236,7 +236,3 @@ class CMakeFile:
         for bundle in disabled_bundles:
             enabled_bundles.discard(bundle)
         self._rewrite_file_implementation(file_object, enabled_bundles, rewrite_rules)
-
-
-if __name__ == "__main__":
-    main()
