@@ -12,6 +12,7 @@ def get_batch_client():
     """Lazily initialize and cache the GitHub client manager from environment."""
     return boto3.session.Session().client(service_name='batch')
 
+
 def ttl_lru_cache(ttl, maxsize=100):
     """Least-recently-used (LRU) cache function decorator with time-to-live
     (TTL) windowing.
@@ -45,22 +46,6 @@ def ttl_lru_cache(ttl, maxsize=100):
 
         return wrapped_func_hidden_ttl_key
     return decorator
-
-
-@ttl_lru_cache(ttl=3600)  # Secrets expire after an hour.
-def get_secret_string(secret_arn):
-    """Get a secret value from aws secret store."""
-    secret_client = boto3.session.Session().client(service_name='secretsmanager')
-    get_secret_value_response = secret_client.get_secret_value(
-        SecretId=secret_arn
-    )
-    # Secrets Manager decrypts the secret value using the associated KMS CMK
-    # Depending on whether the secret was a string or binary, only one of these
-    # fields will be populated
-    if 'SecretString' in get_secret_value_response:
-        return get_secret_value_response['SecretString']
-    else:
-        return get_secret_value_response['SecretBinary']
 
 
 class BatchSubmitConfig(object):

@@ -69,11 +69,6 @@ class GitHubAppClientManager(object):
         raise EnvironmentError(
             'Environment must have "GITHUB_TOKEN" or "GITHUB_TOKEN_FILE" vars')
 
-    def get_active_prs(self, repo, owner):
-        print(f'Fetching pull requests for {owner}/{repo}')
-        repo = self.get_repository(repo, owner)
-        return repo.get_pulls(state='open')
-
     def get_repository(self, repo, owner):
         LOG.info(f'Fetching repository {owner}/{repo}')
         return self.client.get_repo(f'{owner}/{repo}')

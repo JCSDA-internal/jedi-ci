@@ -114,7 +114,7 @@ def get_environment_config():
 def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, target_repo_path):
     """The main function that will be called to prepare and launch the CI test.
     
-    This is similart to the process_event function, which was used by the lambda
+    This is similar to the process_event function, which was used by the lambda
     CI actuator but has been adapted for the Github-based Action CI.
     """
     # Use got to clone the bundle repository into the bundle_repo_path using
@@ -220,12 +220,13 @@ def process_event(event_config, ci_config):
         print(f'{event_config}')
         raise ValueError('bad config, check logs.')
 
-    build_info_payload, run_tests, test_select, build_env_suffix = pr_resolve.get_prs(
-        trigger_repo=repo_name,
-        trigger_uri=trigger_repo_uri,
-        trigger_pr_id=pull_request_number,
-        trigger_commit=trigger_commit,
-        pr_payload=pr_payload)
+    # Get PRs has been deleted
+    #build_info_payload, run_tests, test_select, build_env_suffix = pr_resolve.get_prs(
+    #    trigger_repo=repo_name,
+    #    trigger_uri=trigger_repo_uri,
+    #    trigger_pr_id=pull_request_number,
+    #    trigger_commit=trigger_commit,
+    #    pr_payload=pr_payload)
     if not run_tests:
         print(f'Skipping tests for "{repo_name}#{pull_request_number}"')
         return
@@ -304,20 +305,3 @@ def process_event(event_config, ci_config):
             )
             job_arn = job['jobArn']
             print(f'Submitted Batch Job: "{job_arn}". {timer.checkpoint()}')
-
-
-def get_content_type(headers):
-    """Helper function to parse content-type from the header"""
-    raw_content_type = headers.get('content-type')
-
-    if raw_content_type is None:
-        return None
-    # This is Python's recommended std. lib. method for decoding content type.
-    msg = email.message.EmailMessage()
-    msg['content-type'] = raw_content_type
-    return msg.get_content_type()
-
-
-def print_error(message, headers):
-    """Helper function to print errors"""
-    print(f'ERROR: {message}\nHeaders: {str(headers)}')
