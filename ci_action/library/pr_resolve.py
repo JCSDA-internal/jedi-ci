@@ -6,14 +6,13 @@ from typing import Any, Mapping, NamedTuple, Tuple, Union
 
 import github
 
-from library import github_client
-from library import aws_client
+from ci_action.library import github_client
+from ci_action.library import aws_client
 
+LOG = logging.getLogger("pr_resolve")
 
 logging.basicConfig(level=logging.INFO)
-GITHUB_URI = "https://github.com/"
 
-GITHUB_CLIENT = github_client.GitHubAppClientManager.init_from_environment()
 
 INTEGRATED_ORG_WHITELIST = frozenset(['jcsda-internal', 'jcsda', 'geos-esm'])
 
@@ -43,17 +42,6 @@ JEDI_BUNDLE_BRANCH_RE = re.compile(
 MANIFEST_BRANCH_RE = re.compile(
     r'^jedi-ci-manifest-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)
 
-
-@aws_client.ttl_lru_cache(ttl=5*60)
-def get_test_manifest(branch_arg: str, manifest_path: str = 'test_manifest.json'):
-    # Default branch used if the test description did not override this.
-    branch_name = os.environ.get('GITHUB_CI_REPO_BRANCH', 'develop')
-    if branch_arg:
-        branch_name = branch_arg
-    repo = GITHUB_CLIENT.get_repository('CI', 'JCSDA-internal')
-    contents = repo.get_contents(manifest_path, ref=branch_name)
-    json_content =  json.loads(contents.decoded_content)
-    return json_content
 
 
 class TestAnnotations(NamedTuple):
@@ -104,6 +92,7 @@ def read_test_annotations(
         repo_uri: str,
         pr_number: int,
         pr_payload: Union[Mapping[str, Any], None],
+        testmode: bool,
         build_group_regex=BUILD_GROUP_RE,
         cache_regex=CACHE_BEHAVIOR_RE,
         draft_regex=DRAFT_PR_RUN_RE,
@@ -120,13 +109,15 @@ def read_test_annotations(
     """
     # Get the PR description if it was not provided by the caller.
     if not pr_payload:
-        _validate_repo_uri(repo_uri=repo_uri)
-        repo, org = _repo_tuple_from_uri(repo_uri=repo_uri)
-        grepo = GITHUB_CLIENT.get_repository(repo, org)
+        github_client.validate_github_uri(repo_uri=repo_uri)
+        repo, org = github_client.get_repo_tuple_from_github_uri(repo_uri=repo_uri)
+        grepo = github_client.get_client().get_repository(repo, org)
         pr_payload = grepo.get_pull(pr_number)._rawData
         pr_body = pr_payload["body"]
     else:
         pr_body = pr_payload["body"]
+
+    LOG.info(f'pr_body: {pr_body}')
     # GitHub may use windows newlines (\r\n), this swap here ensures that no
     # matter what newline type is returned, the text is evaluated with standard
     # newlines.
@@ -134,10 +125,17 @@ def read_test_annotations(
     # Build Group
     build_group_members = []
     build_group_matches = build_group_regex.findall(pr_body)
+    LOG.info(f'build_group_matches: {build_group_matches}')
     for group_match in build_group_matches:
         build_group_members.append(group_match)
     print(f'Intermediate group matches: {build_group_members}')
     build_group_pr_map = get_build_group_pr_map(build_group_members)
+    if not testmode:
+        # If this is not a self-test then the target repo is added to
+        # the build group PR map since it will be used for bundle rewriting.
+        repo_name, org = github_client.get_repo_tuple_from_github_uri(repo_uri=repo_uri)
+        build_group_pr_map[f'{org.lower()}/{repo_name.lower()}'] = int(pr_number)
+
     # Cache behavior: note that skip cache controls read behavior while
     # rebuild_cache controls write behavior. The correct global behavior can
     # be understood globally from the keyword used since rebuilding the cache
@@ -222,181 +220,21 @@ def get_build_group_pr_map(build_group_members):
     return pr_map
 
 
-def gather_pr_group(test_manifest: dict, trigger_repo_key: str, curr_pr_id: str, pr_group_map):
-    group = []
+def gather_build_group_hashes(build_group_mapping):
+    """Colects the commit hash for each repository in the build group."""
+    pr_group_map_out = {}
 
-    # Loop over all repositories in the manifest. Later "continue" calls
-    # all come back here (the "repository loop").
-    for manifest_entry in test_manifest["repositories"]:
-        repo_uri = manifest_entry["uri"]
-        repo_manifest_name = manifest_entry["name"]
-        _validate_repo_uri(repo_uri=repo_uri)
-        repo_name, org = _repo_tuple_from_uri(repo_uri=repo_uri)
-        repo_name_key = org.lower() + '/' + repo_name.lower()
-
-        # External orgs (including public "jcsda") are not evaluated for
-        # pull request matching. We just use the identified release branch.
-        if org.lower() not in INTEGRATED_ORG_WHITELIST:
-            group.append(
-                {
-                    "name": repo_manifest_name,
-                    "uri": repo_uri,
-                    "version_ref": {
-                        "pr_id": "",
-                        "branch": manifest_entry['branch'],
-                    },
-                }
-            )
-            continue  # Continue the repository loop.
-
-        # This step only works for git repos with our app integration.
-        grepo = GITHUB_CLIENT.get_repository(repo_name, org)
-
-
-        # Handle self-reference differently (we already know pull #, etc).
-        if repo_name_key == trigger_repo_key:
-            pr = grepo.get_pull(curr_pr_id)
-            group.append(
-                {
-                    "name": repo_manifest_name,
-                    "uri": repo_uri,
-                    "version_ref": {
-                        "pr_id": pr.number,
-                        "branch": pr.head.ref,
-                        "commit": pr.head.sha,
-                    },
-                }
-            )
-            continue  # Continue the repository loop.
-
-        if repo_name_key in pr_group_map:
-            pr_number = pr_group_map[repo_name_key]
-            pr = grepo.get_pull(pr_number)
-            group.append(
-                    {
-                        "name": repo_manifest_name,
-                        "uri": repo_uri,
-                        "version_ref": {
-                            "pr_id": pr.number,
-                            "branch": pr.head.ref,
-                            "commit": pr.head.sha,
-                        },
-                    }
-                )
-            continue
-
-        # If there is no build group or no pull request that matches then we
-        # will get the default branch.
-        if 'branch' in manifest_entry:
-            default_branch = grepo.get_branch(manifest_entry['branch'])
-            ref_name = f'refs/heads/{manifest_entry["branch"]}'
-            commit_sha = default_branch.commit.sha
-        elif 'release_tag' in manifest_entry:
-            # Release tags can use the built-in version reference and only
-            # need to be configured if a pull request group is specified. This
-            # configuration is handled by the section that checks if the repo
-            # is in the `pr_group_map` dictionary.
-            continue
-
-        group.append(
-            {
-                "name": repo_manifest_name,
-                "uri": repo_uri,
-                "version_ref": {
-                    "pr_id": "",
-                    "branch": ref_name,
-                    "commit": commit_sha,
-                },
-            }
-        )
-    # Return the gathered manifest branch version references.
-    return group
-
-
-def get_prs(trigger_repo: str, trigger_uri: str, trigger_pr_id: str, trigger_commit: str, pr_payload: Union[Mapping[str, Any], None]):
-    """Evaluate a commit and configure tests based on the manifest and annotations.
-
-    Args:
-      trigger_repo: name of the triggering repository.
-      trigger_uri: https URI of the triggering repository.
-      trigger_pr_id: (string) the pull request number expressed as a string.
-      trigger_commit: full SHA hash of the trigger commit.
-
-    Returns a 3-tuple of:
-      build_info_payload: (dict) The "build info" json used to configure a test.
-      run_tests: (bool) go/no-go for tests.
-      test_select: string, may be one of {random, all, gcc, gcc11, intel}
-      job_suffix: Used as the suffix for the job definition. May be an
-                    empty string or "-next" to test updates to the CI
-                    environment.
-    """
-    test_annotations = read_test_annotations(
-        repo_uri=trigger_uri, pr_number=trigger_pr_id, pr_payload=pr_payload)
-
-    test_manifest = get_test_manifest(test_annotations.jedi_ci_manifest_branch)
-
-    # Get group name, test tags, and other attributes from current PR
-    real_repo_name, org = _repo_tuple_from_uri(repo_uri=trigger_uri)
-    repo_name_key = org.lower() + '/' + real_repo_name.lower()
-    current_repo_manifest = list(
-        filter(
-            lambda repo_manifest: repo_manifest["uri"].lower() == trigger_uri.lower(),
-            test_manifest["repositories"]
-        )
-    )[0]
-    # Retreive current repo uri
-    curr_repo_uri = current_repo_manifest["uri"]
-    curr_repo_manifest_name = current_repo_manifest["name"]
-    test_tag = current_repo_manifest.get("test_tag", "")
-
-
-    # If not running tests, return early to avoid unnecessary GitHub API calls.
-    if not test_annotations.run_tests:
-        return None, False, "", ""
-
-    print(f"Build group mapping found: {test_annotations.build_group_map}")
-    pr_group = gather_pr_group(
-        test_manifest, repo_name_key, trigger_pr_id, test_annotations.build_group_map)
-
-    build_info_payload = {
-        "trigger_pr_number": trigger_pr_id,
-        "trigger_commit_sha": trigger_commit,
-        "trigger_repo":  trigger_repo,
-        "manifest_name": curr_repo_manifest_name,
-        "test_tag": test_tag,
-        "dependencies": current_repo_manifest.get('dependencies', []),
-        "test_script": current_repo_manifest.get('test_script'),
-        "build_group": test_annotations.build_group_map,
-        "skip_cache": test_annotations.skip_cache,
-        "rebuild_cache": test_annotations.rebuild_cache,
-        "version_map": pr_group,
-        "debug_time": 120*60 if test_annotations.debug_mode else 0,
-        "jedi_bundle_branch": test_annotations.jedi_bundle_branch,
-    }
-
-
-    return (
-        build_info_payload,
-        True,
-        test_annotations.test_select,
-        test_annotations.next_ci_suffix,
-    )
-
-
-def _validate_repo_uri(repo_uri: str) -> str:
-    if not repo_uri.startswith(GITHUB_URI) and repo_uri.endswith(".git"):
-        raise ValueError(
-            f'Uri for {repo_name} is invalid. It should containt '
-            f'{GITHUB_URI} and end in .git.')
-
-
-def _get_fullname_from_uri(repo_uri: str) -> str:
-    """Converts https://github.com/org/repo.git into org/repo."""
-    return repo_uri[len(GITHUB_URI) : -4 : 1]
-
-
-def _repo_tuple_from_uri(repo_uri: str) -> str:
-    """Converts https://github.com/org/repo.git into a ("repo", "org") tuple."""
-    full_repo = _get_fullname_from_uri(repo_uri)
-    org, repo = full_repo.split('/', 1)
-    return repo, org
+    for repo_name_key, pr_number in build_group_mapping.items():
+        org, repo = repo_name_key.split('/')
+        grepo = github_client.get_client().get_repository(repo, org)
+        pr = grepo.get_pull(pr_number)
+        pr_group_map_out[repo_name_key] = {
+            "name_key": repo_name_key,
+            "uri": grepo.clone_url,
+            "version_ref": {
+                "pr_id": pr.number,
+                "branch": pr.head.ref,
+                "commit": pr.head.sha,
+            },
+        }
+    return pr_group_map_out

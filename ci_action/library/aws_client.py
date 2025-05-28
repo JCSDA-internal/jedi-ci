@@ -7,57 +7,10 @@ import os
 import time
 import functools
 
-SECRET_CLIENT = boto3.session.Session().client(service_name='secretsmanager')
-BATCH_CLIENT = boto3.session.Session().client(service_name='batch')
-
-def ttl_lru_cache(ttl, maxsize=100):
-    """Least-recently-used (LRU) cache function decorator with time-to-live
-    (TTL) windowing.
-
-    This cache is not the most advanced implementation of the idea but it
-    is (relatively) simple. The TTL is enforced via time windowing by feeding
-    the time window to the builtin LRU cache as a parameter. While cached
-    objects may expire sooner than strictly necessary, the cache will never
-    return objects that have outlived their TTL.
-
-    Args:
-      ttl: the number of seconds for cache item TTL.
-      maxsize: the maximum number of items allowed in the cache before
-               new items evict the least recently used items.
-    """
-
-    def decorator(f):
-        # Define the cached function that will be called.
-        @functools.lru_cache(maxsize)
-        def ttl_keyed_function(*args, ttl_hash, **kwargs):
-            del ttl_hash  # The hash is only used to key the lru_cache.
-            return f(*args, **kwargs)
-
-        # The wrapped function with the original signature will generate the
-        # TTL hash and call the TTL keyed function. This function will be
-        # returned by the decorator.
-        @functools.wraps(f)
-        def wrapped_func_hidden_ttl_key(*args, **kwargs):
-            return ttl_keyed_function(
-                *args, ttl_hash=int(time.time()/ttl), **kwargs)
-
-        return wrapped_func_hidden_ttl_key
-    return decorator
-
-
-@ttl_lru_cache(ttl=3600)  # Secrets expire after an hour.
-def get_secret_string(secret_arn):
-    """Get a secret value from aws secret store."""
-    get_secret_value_response = SECRET_CLIENT.get_secret_value(
-        SecretId=secret_arn
-    )
-    # Secrets Manager decrypts the secret value using the associated KMS CMK
-    # Depending on whether the secret was a string or binary, only one of these
-    # fields will be populated
-    if 'SecretString' in get_secret_value_response:
-        return get_secret_value_response['SecretString']
-    else:
-        return get_secret_value_response['SecretBinary']
+@functools.lru_cache(maxsize=1)
+def get_batch_client():
+    """Lazily initialize and cache the GitHub client manager from environment."""
+    return boto3.session.Session().client(service_name='batch')
 
 
 class BatchSubmitConfig(object):
@@ -130,7 +83,7 @@ def submit_test_batch_job(
     ):
     """Submit a CI batch job."""
     job_name = f'jedi-ci-{repo_name}-{pr}-{commit}-{config.build_environment}'
-    return BATCH_CLIENT.submit_job(
+    return get_batch_client().submit_job(
         jobName=job_name,
         jobQueue=config.job_queue,
         jobDefinition=config.job_definition,

@@ -1,44 +1,24 @@
-"""GitHub client wrapper for Lambda function.
+"""GitHub client wrapper.
 
-Our GitHub Lambda function will use a GitHub app integration for accessing
-repository metadata and code. GitHub app integration credentials work with
-credentials scoped to the "install" which is associated with a user or an
-organization; a single application may have many installs.
-
-This library provides the class GitHubAppClientManager whose instances will
-evaluate an application and eagerly create the full set  of the GitHub clients.
-Using this manager the caller may access the client directly, or make the
-'get_repository' call which will automatically use the correct client and
-return a github.Repository object.
-
-The GitHubAppClientManager may be initialized directly, or may be initialized
-using the following environment variables:
-  - GITHUB_APP_ID: GitHub App ID, usually a set of numbers (eg. "12345").
-  - GITHUB_APP_KEY_ARN: The AWS ARN identifier for the GitHub app private
-                        RSA key.
-
-This utility can also fall back to using a personal access token (PAT) which is
-helpful for local development. Set GITHUB_TOKEN_FILE to the location of a file
-containing a personal access token. The application credentials will not be used
-when a PAT is provided.
+This class wraps a number of GitHub client types and functions. As
+currently implemented it doesn't do too much but exists to support
+the implementation inhereted from the GitHub Lambda function which
+required a more complex app-integration client
 """
 import datetime
 import github
-import jwt
 import logging
 import os
 import random
 import time
+from functools import lru_cache
 
 from ci_action.library import aws_client
 
-
-# The init_from_environment() acts as a singleton instantiator to reduce
-# duplication of API calls. Once that method is called, the client manager
-# object will be kept here.
-_GITHUB_ENVIRONMENT_CLIENT = None
+LOG = logging.getLogger("github_client")
 
 GITHUB_URI = "https://github.com/"
+
 
 class GitHubAppClientManager(object):
     """A wrapper for the GitHub client that efficiently uses app credentials.
@@ -61,81 +41,36 @@ class GitHubAppClientManager(object):
     a personal access token is used then app credentials cannot be used.
     """
 
-    def __init__(self,
-                 app_id: str,
-                 app_private_key: str,
-                 personal_access_token: str = ""):
+    def __init__(self, personal_access_token: str):
         """Initialize the GitHubAppClientManager."""
-        self._app_clients = {}
-        self._integration = None
-        if (app_id or app_private_key) and personal_access_token:
-            raise ValueError(
-                "You must initialize with app credentials or personal access "
-                "token credentials, the use of both is not allowed.")
-        # Personal access token case short circuits much of this object's use
-        # but should be supported to allow development elsewhere.
-        if personal_access_token:
-            self._pat_client = github.Github(personal_access_token)
-            return
-        # Support for app credentials.
-        self._pat_client = None
-        self._integration = github.GithubIntegration(
-            app_id,
-            app_private_key,
-            jwt_expiry=599)
-
-        for installation in self._integration.get_installations():
-            auth = github.AppAuthentication(
-                    app_id=app_id,
-                    private_key=app_private_key,
-                    installation_id=installation.id)
-            client = github.Github(app_auth=auth)
-            client_name = installation.raw_data['account']['login'].lower()
-            self._app_clients[client_name] = client
+        LOG.info(f'Initializing GitHubAppClientManager with personal_access_token, string of length {len(personal_access_token)}')
+        if not personal_access_token:
+            raise ValueError("argument personal_access_token is required and must be a non-empty string")
+        self.client = github.Github(personal_access_token)
 
     @classmethod
     def init_from_environment(cls):
-        global _GITHUB_ENVIRONMENT_CLIENT
-        if _GITHUB_ENVIRONMENT_CLIENT:
-            return _GITHUB_ENVIRONMENT_CLIENT
+        # If environment variable JEDI_CI_TOKEN is set, use it to create a client.
+        # This is the preferred token used in the GitHub Action workflow.
+        if 'JEDI_CI_TOKEN' in os.environ:
+            return cls(personal_access_token=os.environ['JEDI_CI_TOKEN'])
 
+        # If environment variable GITHUB_TOKEN is set, use it to create a client.
+        if 'GITHUB_TOKEN' in os.environ:
+            return cls(personal_access_token=os.environ['GITHUB_TOKEN'])
+
+        # If environment variable GITHUB_TOKEN_FILE is set, read the content 
+        # # and use it as a personal access token
         if 'GITHUB_TOKEN_FILE' in os.environ:
             with open(os.environ['GITHUB_TOKEN_FILE'], 'r') as f:
-                _GITHUB_ENVIRONMENT_CLIENT = cls(
-                    None, None, personal_access_token=f.read().strip())
-                return _GITHUB_ENVIRONMENT_CLIENT
-        if 'GITHUB_APP_ID' in os.environ and 'GITHUB_APP_KEY_ARN' in os.environ:
-            app_key = aws_client.get_secret_string(
-                os.environ['GITHUB_APP_KEY_ARN'])
-            app_id = os.environ['GITHUB_APP_ID']
-            _GITHUB_ENVIRONMENT_CLIENT = cls(app_id, app_key, None)
-            return _GITHUB_ENVIRONMENT_CLIENT
+                return cls(personal_access_token=f.read().strip())
+
         raise EnvironmentError(
-            'Environment must have var "GITHUB_TOKEN_FILE" or vars'
-            '"GITHUB_APP_ID" and "GITHUB_APP_KEY_ARN".')
-
-    def get_client(self, owner):
-        """Select the correct GitHub client for a repository.
-
-        Private repositories need the client associated with the app
-        integration. Public repositories can use any client. This routine looks
-        for an app integration and if it fails a random client is returned. Note
-        that if we add private repositories without an integration, then we
-        will get authorization errors.
-        """
-        owner = owner.lower()
-        if owner in self._app_clients:
-            return self._app_clients.get(owner.lower())
-        return random.choice(list(self._app_clients.values()))
-
-    def get_active_prs(self, repo, owner):
-        print(f'Fetching pull requests for {owner}/{repo}')
-        repo = self.get_repository(repo, owner)
-        return repo.get_pulls(state='open')
+            'Environment must have "JEDI_CI_TOKEN", "GITHUB_TOKEN", or "GITHUB_TOKEN_FILE" vars')
 
     def get_repository(self, repo, owner):
-        client = self.get_client(owner)
-        return client.get_repo(f'{owner}/{repo}')
+        LOG.info(f'Fetching repository {owner}/{repo}')
+        return self.client.get_repo(f'{owner}/{repo}')
 
     def create_check_run(self, repo, owner, commit, run_name):
         """Create a new GitHub check run."""
@@ -178,6 +113,19 @@ def create_check_runs(build_environment, repo, owner, trigger_commit, next_suffi
     return {'unit': unit_run.id, 'integration': integration_run.id}
 
 
+@lru_cache(maxsize=1)
+def get_client():
+    """Lazily initialize and cache the GitHub client manager from environment."""
+    return GitHubAppClientManager.init_from_environment()
+
+
+def validate_github_uri(repo_uri: str) -> str:
+    if not repo_uri.startswith(GITHUB_URI) and repo_uri.endswith(".git"):
+        raise ValueError(
+            f'Uri for {repo_uri} is invalid. It should containt '
+            f'{GITHUB_URI} and end in .git.')
+
+
 def get_fullname_from_github_uri(repo_uri: str) -> str:
     """Converts https://github.com/org/repo.git or https://github.com/org/repo into org/repo."""
     # Remove the GitHub URI prefix
@@ -186,6 +134,7 @@ def get_fullname_from_github_uri(repo_uri: str) -> str:
     if repo_path.endswith('.git'):
         repo_path = repo_path[:-4]
     return repo_path
+
 
 def get_repo_tuple_from_github_uri(repo_uri: str) -> str:
     """Converts https://github.com/org/repo.git into a ("repo", "org") tuple."""
