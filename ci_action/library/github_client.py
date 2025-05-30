@@ -19,8 +19,6 @@ LOG = logging.getLogger("github_client")
 
 GITHUB_URI = "https://github.com/"
 
-GITHUB_URI = "https://github.com/"
-
 
 class GitHubAppClientManager(object):
     """A wrapper for the GitHub client that efficiently uses app credentials.
@@ -68,7 +66,7 @@ class GitHubAppClientManager(object):
                 return cls(personal_access_token=f.read().strip())
 
         raise EnvironmentError(
-            'Environment must have "GITHUB_TOKEN" or "GITHUB_TOKEN_FILE" vars')
+            'Environment must have "JEDI_CI_TOKEN", "GITHUB_TOKEN", or "GITHUB_TOKEN_FILE" vars')
 
     def get_repository(self, repo, owner):
         LOG.info(f'Fetching repository {owner}/{repo}')
