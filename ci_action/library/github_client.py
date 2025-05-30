@@ -21,6 +21,7 @@ GITHUB_URI = "https://github.com/"
 
 GITHUB_URI = "https://github.com/"
 
+
 class GitHubAppClientManager(object):
     """A wrapper for the GitHub client that efficiently uses app credentials.
 
