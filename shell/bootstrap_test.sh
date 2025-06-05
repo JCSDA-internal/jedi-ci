@@ -38,7 +38,7 @@ chmod +x get_crtm_tarball.sh
 ./get_crtm_tarball.sh -d "${CRTM_BINARY_FILES_TARBALL}"
 
 echo "Starting tests."
-$WORKDIR/bundle/jedi_ci_resources/run_tests_integration.sh 2>&1 | tee >(python -m ansi2html -l > /tmp/build_logs.html)
+$WORKDIR/bundle/jedi_ci_resources/run_tests.sh 2>&1 | tee >(python -m ansi2html -l > /tmp/build_logs.html)
 
 set -x
 aws s3 cp /tmp/build_logs.html $PUBLIC_LOG_S3 --content-type "text/html"
