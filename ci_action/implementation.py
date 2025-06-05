@@ -190,6 +190,7 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
     s3_path = upload_to_aws(BUILD_CACHE_BUCKET, s3_client, bundle_tarball, s3_file)
 
     # Launch the test
+    test_select = test_annotations.test_select
     if test_select == 'random':
         chosen_build_environments = [random.choice(BUILD_ENVIRONMENTS)]
     elif test_select == 'all':
@@ -204,7 +205,7 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
     # TODO: this will not be included in first pass.
 
     # write the test github check runs to the PR.
-     for build_environment in chosen_build_environments:
+    for build_environment in chosen_build_environments:
         checkrun_id_map = github_client.create_check_runs(
             build_environment,
             environment_config['repo_name'],
@@ -220,10 +221,14 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
             repo_name=environment_config['repo_name'],
             commit=environment_config['trigger_commit_short'],
             pr=environment_config['pull_request_number'],
-            test_script=test_script, # This concept is deprecated, there's only one test script.
+            configured_bundle_tarball=environment_config.get('configured_bundle_tarball', ''),  # TODO: set this value appropriately
+            debug_time_seconds=debug_time,
             build_identity=build_identity,
-            debug_time=debug_time,
-            build_info=build_info_b64, # This concept is deprecated.
+            unittest_tag=ci_config['test_tag'],
+            trigger_sha=environment_config['trigger_commit'],
+            trigger_pr=str(environment_config['pull_request_number']),
+            integration_run_id=checkrun_id_map['integration'],
+            unit_run_id=checkrun_id_map['unit'],
         )
         job_arn = job['jobArn']
         LOG.info(f'Submitted Batch Job: "{job_arn}". {timer.checkpoint()}')

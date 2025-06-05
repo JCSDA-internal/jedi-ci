@@ -63,23 +63,28 @@ class BatchSubmitConfigFromEnv(object):
 
     This class is configured using the following environment variables. If any
     are unset, the class cannot be instantiated.
-
-    Environment configuration:
-        BATCH_JOB_DEFINITION_CLANG: the ARN of the "clang" test batch job def.
-        BATCH_JOB_DEFINITION_GNU: the ARN of the "gcc" test batch job def.
-        BATCH_JOB_DEFINITION_INTEL: the ARN of the "intel" test batch job def.
-        BATCH_JOB_QUEUE: the ARN of the Batch job queue used for testing jobs.
     """
+
+    # These names come from the batch jobs defined in //cfn/jedi-ci-action.yaml.
+    _JOB_NAME_MAP = {
+        'gcc11': 'jedi-ci-action-gcc11',
+        'gcc11-next': 'jedi-ci-action-gcc11',
+        'gcc': 'jedi-ci-action-gcc',
+        'gcc-next': 'jedi-ci-action-gcc-next',
+        'intel': 'jedi-ci-action-intel',
+        'intel-next': 'jedi-ci-action-intel-next',
+    }
 
     def __init__(self, timeout):
         """Init from environment."""
+
         self._job_def_map = {
-            'gcc11': os.environ.get('BATCH_JOB_DEFINITION_CLANG', ''),
-            'gcc': os.environ.get('BATCH_JOB_DEFINITION_GNU', ''),
-            'intel': os.environ.get('BATCH_JOB_DEFINITION_INTEL', ''),
-            'gcc11-next': os.environ.get('BATCH_JOB_DEFINITION_CLANG_NEXT', ''),
-            'gcc-next': os.environ.get('BATCH_JOB_DEFINITION_GNU_NEXT', ''),
-            'intel-next': os.environ.get('BATCH_JOB_DEFINITION_INTEL_NEXT', ''),
+            'gcc11': self.get_latest_job_arn('gcc11'),
+            'gcc': self.get_latest_job_arn('gcc'),
+            'intel': self.get_latest_job_arn('intel'),
+            'gcc11-next': self.get_latest_job_arn('gcc11-next'),
+            'gcc-next': self.get_latest_job_arn('gcc-next'),
+            'intel-next': self.get_latest_job_arn('intel-next')
         }
         self._job_queue = os.environ.get('BATCH_JOB_QUEUE', '')
         self._timeout = timeout
@@ -93,6 +98,18 @@ class BatchSubmitConfigFromEnv(object):
             raise EnvironmentError(
                 f'BATCH_JOB_QUEUE "{self._job_queue}" is not an AWS Batch '
                 'service arn. Value must start with "arn:aws:batch"')
+
+    def get_latest_job_arn(self, job_environment):
+        """Get the job arn for a given environment."""
+        client = get_batch_client()
+        batch_job_name = self._JOB_NAME_MAP[job_environment]
+        response = client.describe_job_definitions(
+            jobDefinitionName=batch_job_name,
+            status='ACTIVE',
+        )
+        # Get the most recent active job.
+        job_definitions = sorted(response['jobDefinitions'], key=lambda x: x['revision'], reverse=True)
+        return job_definitions[0]['jobDefinitionArn']
 
     def get_config(self, build_environment):
         """Get a BatchSubmitConfig for a named environment."""
@@ -111,12 +128,16 @@ def submit_test_batch_job(
         repo_name: str,
         commit: str,
         pr: int,
-        test_script: str,
+        configured_bundle_tarball: str,
+        debug_time_seconds: int,
         build_identity: str,
-        debug_time: int,
-        build_info: str,
+        unittest_tag: str,
+        trigger_sha: str,
+        trigger_pr: str,
+        integration_run_id: str,
+        unit_run_id: str,
     ):
-    """Submit a CI batch job."""
+    """Submit a CI batch job with updated environment variables."""
     job_name = f'jedi-ci-{repo_name}-{pr}-{commit}-{config.build_environment}'
     return get_batch_client().submit_job(
         jobName=job_name,
@@ -137,16 +158,32 @@ def submit_test_batch_job(
                 },
                 {
                     'name': 'DEBUG_TIME_SECONDS',
-                    'value': f'{debug_time}',
+                    'value': f'{debug_time_seconds}',
                 },
                 {
-                    'name': 'BUILD_INFO_B64',
-                    'value': build_info,
+                    'name': 'CONFIGURED_BUNDLE_TARBALL',
+                    'value': configured_bundle_tarball,
                 },
                 {
-                    'name': 'TEST_SCRIPT',
-                    'value': test_script,
-                }
+                    'name': 'UNITTEST_TAG',
+                    'value': unittest_tag,
+                },
+                {
+                    'name': 'TRIGGER_SHA',
+                    'value': trigger_sha,
+                },
+                {
+                    'name': 'TRIGGER_PR',
+                    'value': trigger_pr,
+                },
+                {
+                    'name': 'INTEGRATION_RUN_ID',
+                    'value': integration_run_id,
+                },
+                {
+                    'name': 'UNIT_RUN_ID',
+                    'value': unit_run_id,
+                },
             ],
         },
     )
