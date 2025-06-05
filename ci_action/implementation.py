@@ -111,6 +111,7 @@ def get_environment_config():
         'pull_request_number': pull_request_number,
         'pr_payload': pr_payload,
         'trigger_commit': trigger_commit,
+        'trigger_commit_short': trigger_commit[:7],
     }
     return config
 
@@ -212,15 +213,17 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
             test_annotations.next_ci_suffix)
 
         # Note checkrun_id_map is dict {'unit': unit_run.id, 'integration': integration_run.id}
+        debug_time = 60*30 if test_annotations.debug_mode else 0
+        build_identity = f'{environment_config["repo_name"]}-{environment_config["pull_request_number"]}-{environment_config["trigger_commit_short"]}-{build_environment}'
         job = aws_client.submit_test_batch_job(
-            config=batch_submit_env.get_config(build_environment + build_env_suffix),
-            repo_name=repo_name,
-            commit=short_commit,
-            pr=pull_request_number,
-            test_script=test_script,
-            build_identity=f'{repo_name}-{pull_request_number}-{short_commit}-{build_environment}',
+            config=batch_submit_env.get_config(build_environment + test_annotations.next_ci_suffix),
+            repo_name=environment_config['repo_name'],
+            commit=environment_config['trigger_commit_short'],
+            pr=environment_config['pull_request_number'],
+            test_script=test_script, # This concept is deprecated, there's only one test script.
+            build_identity=build_identity,
             debug_time=debug_time,
-            build_info=build_info_b64,
+            build_info=build_info_b64, # This concept is deprecated.
         )
         job_arn = job['jobArn']
         LOG.info(f'Submitted Batch Job: "{job_arn}". {timer.checkpoint()}')

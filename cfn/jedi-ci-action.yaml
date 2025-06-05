@@ -425,8 +425,6 @@ Resources:
           - "-c"
           - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
-          - Name: CONFIGURED_BUNDLE_TARBALL
-            Value: ''
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
           - Name: GITHUB_APP_ID
@@ -437,14 +435,16 @@ Resources:
             Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
-          - Name: TRIGGER_REPO_FULL
-            Value: unknown
-          - Name: DEBUG_TIME_SECONDS
-            Value: "0"
-          - Name: CONTAINER_VERSION
-            Value: latest
           - Name: JEDI_COMPILER
             Value: gcc11
+          - Name: CONTAINER_VERSION
+            Value: latest
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ""
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
           - Name: BUILD_IDENTITY
             Value: ""
           - Name: UNITTEST_TAG
@@ -482,8 +482,6 @@ Resources:
           - "-c"
           - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
-          - Name: CONFIGURED_BUNDLE_TARBALL
-            Value: ''
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
           - Name: GITHUB_APP_ID
@@ -494,14 +492,16 @@ Resources:
             Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
-          - Name: TRIGGER_REPO_FULL
-            Value: unknown
-          - Name: DEBUG_TIME_SECONDS
-            Value: "0"
-          - Name: CONTAINER_VERSION
-            Value: latest
           - Name: JEDI_COMPILER
             Value: gcc
+          - Name: CONTAINER_VERSION
+            Value: latest
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ""
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
           - Name: BUILD_IDENTITY
             Value: ""
           - Name: UNITTEST_TAG
@@ -539,8 +539,6 @@ Resources:
           - "-c"
           - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
-          - Name: CONFIGURED_BUNDLE_TARBALL
-            Value: ''
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
           - Name: GITHUB_APP_ID
@@ -551,14 +549,16 @@ Resources:
             Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
-          - Name: TRIGGER_REPO_FULL
-            Value: unknown
-          - Name: DEBUG_TIME_SECONDS
-            Value: "0"
-          - Name: CONTAINER_VERSION
-            Value: latest
           - Name: JEDI_COMPILER
             Value: intel
+          - Name: CONTAINER_VERSION
+            Value: latest
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ""
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
           - Name: BUILD_IDENTITY
             Value: ""
           - Name: UNITTEST_TAG
@@ -598,8 +598,6 @@ Resources:
           - "-c"
           - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
-          - Name: CONFIGURED_BUNDLE_TARBALL
-            Value: ''
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
           - Name: GITHUB_APP_ID
@@ -610,14 +608,16 @@ Resources:
             Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
-          - Name: TRIGGER_REPO_FULL
-            Value: unknown
-          - Name: DEBUG_TIME_SECONDS
-            Value: "0"
-          - Name: CONTAINER_VERSION
-            Value: next
           - Name: JEDI_COMPILER
             Value: gcc11
+          - Name: CONTAINER_VERSION
+            Value: next
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ""
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
           - Name: BUILD_IDENTITY
             Value: ""
           - Name: UNITTEST_TAG
@@ -655,8 +655,6 @@ Resources:
           - "-c"
           - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
-          - Name: CONFIGURED_BUNDLE_TARBALL
-            Value: ''
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
           - Name: GITHUB_APP_ID
@@ -667,14 +665,16 @@ Resources:
             Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
-          - Name: TRIGGER_REPO_FULL
-            Value: unknown
-          - Name: DEBUG_TIME_SECONDS
-            Value: "0"
-          - Name: CONTAINER_VERSION
-            Value: next
           - Name: JEDI_COMPILER
             Value: gcc
+          - Name: CONTAINER_VERSION
+            Value: next
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ""
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
           - Name: BUILD_IDENTITY
             Value: ""
           - Name: UNITTEST_TAG
@@ -712,8 +712,6 @@ Resources:
           - "-c"
           - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
-          - Name: CONFIGURED_BUNDLE_TARBALL
-            Value: ''
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
           - Name: GITHUB_APP_ID
@@ -724,14 +722,16 @@ Resources:
             Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
-          - Name: TRIGGER_REPO_FULL
-            Value: unknown
-          - Name: DEBUG_TIME_SECONDS
-            Value: "0"
-          - Name: CONTAINER_VERSION
-            Value: next
           - Name: JEDI_COMPILER
             Value: intel
+          - Name: CONTAINER_VERSION
+            Value: next
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ""
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
           - Name: BUILD_IDENTITY
             Value: ""
           - Name: UNITTEST_TAG
