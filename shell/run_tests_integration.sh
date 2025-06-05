@@ -44,10 +44,6 @@ if [ -z $GITHUB_INSTALL_ID ]; then
     echo "Var GITHUB_INSTALL_ID must be set and must contain the GitHub App install ID used for API access with target repositories."
     valid_environment_found="no"
 fi
-if [ -z $BUILD_INFO_B64 ]; then
-    echo "Var BUILD_INFO_B64 must be set; it should be a base64 encoded gzipped json string with build configuration and dependency versions."
-    valid_environment_found="no"
-fi
 if [ -z "${JEDI_COMPILER}" ]; then
     echo "Var JEDI_COMPILER must be set. This variable must be the name of the build environment toolchain."
     valid_environment_found="no"
@@ -112,21 +108,10 @@ set -x
 # Setup and run tests.
 #
 
-# The lambda function has generated a json job config and passed it to this test
-# script as "BUILD_INFO_B64" after zipping and base64 encoding it. This step
-# decodes the job config json, and extracts several important config values.
-BUILD_JSON=$(mktemp)
-echo $BUILD_INFO_B64 | base64 --decode | gunzip > $BUILD_JSON
-TRIGGER_MANIFEST_NAME=$(jq -r '.manifest_name' $BUILD_JSON)
-UNITTEST_TAG=$(jq -r '.test_tag' $BUILD_JSON)
-TRIGGER_SHA=$(jq -r '.trigger_commit_sha' $BUILD_JSON)
-TRIGGER_PR=$(jq -r '.trigger_pr_number' $BUILD_JSON)
-TRIGGER_REPO_FULL="JCSDA-internal/${TRIGGER_REPO}"
-INTEGRATION_RUN_ID="$(jq -r ".check_runs.integration" $BUILD_JSON)"
-UNIT_RUN_ID="$(jq -r ".check_runs.unit" $BUILD_JSON)"
-REFRESH_CACHE_ON_FETCH="$(jq -r ".skip_cache" $BUILD_JSON)"
-REFRESH_CACHE_ON_WRITE="$(jq -r ".rebuild_cache" $BUILD_JSON)"
-JEDI_BUNDLE_BRANCH="$(jq -r ".jedi_bundle_branch" $BUILD_JSON)"
+
+#REFRESH_CACHE_ON_FETCH="$(jq -r ".skip_cache" $BUILD_JSON)"
+#REFRESH_CACHE_ON_WRITE="$(jq -r ".rebuild_cache" $BUILD_JSON)"
+#JEDI_BUNDLE_BRANCH="$(jq -r ".jedi_bundle_branch" $BUILD_JSON)"
 
 # Extract just the repo name from the full repository path
 TRIGGER_REPO=$(echo "$TRIGGER_REPO_FULL" | cut -d'/' -f2)
@@ -148,13 +133,6 @@ fi
 # Update check-runs to include the batch job URL is included.
 util.check_run_runner_allocated $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID
 util.check_run_start_build $TRIGGER_REPO_FULL $UNIT_RUN_ID
-
-if [ -n "${JEDI_BUNDLE_BRANCH}" ]; then
-    git clone https://github.com/JCSDA-internal/jedi-bundle.git -b "${JEDI_BUNDLE_BRANCH}" "${JEDI_BUNDLE_DIR}"
-else
-    git clone https://github.com/JCSDA-internal/jedi-bundle.git "${JEDI_BUNDLE_DIR}"
-fi
-
 
 # Get all GitLFS repositories from s3.
 pushd ${JEDI_BUNDLE_DIR}

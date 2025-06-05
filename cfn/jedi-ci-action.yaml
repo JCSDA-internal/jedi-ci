@@ -1,0 +1,780 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation Sample Template Managed Single Batch Job Queue: This
+  template demonstrates the usage of simple Job Queue and EC2 style Compute Environment.'
+Parameters:
+  GitHubAppSecretARN:
+    Description: The secretsmanager ARN for the GitHub application private key used to authenticate GitHub requests.
+    Type: String
+    Default: arn:aws:secretsmanager:us-east-2:747101682576:secret:jedi-ci-github-app-private-key-dNiyG6
+  GitHubAppID:
+    Description: The application ID used to authenticate GitHub requests (along with the app secret).
+    Type: String
+    Default: 321361
+  GitHubInstallID:
+    Description: The install ID of the GitHub application used to fetch the CI repository.
+    Type: String
+    Default: 36634387
+  BatchBuildContainerRoleARN:
+    Description: The ARN of the role used for AWS Batch builds.
+    Type: String
+    Default: arn:aws:iam::747101682576:role/service-role/jedi-ci-pipeline-CodePipel-BatchBuildContainerRole-EP5IZ68L8I7L
+  InstanceVolumeSize:
+    Description: The volume size, in gigabytes, used by the CI ephemeral Runner instances.
+    Type: Number
+    Default: 350
+  Gcc11TestImage:
+    Description: The docker image reference for GCC11 tests.
+    Type: String
+    Default: 747101682576.dkr.ecr.us-east-2.amazonaws.com/jedi-gcc-openmpi-dev:1.9-gcc11
+  GccTestImage:
+    Description: The docker image reference for GCC tests.
+    Type: String
+    Default: 747101682576.dkr.ecr.us-east-2.amazonaws.com/jedi-gcc-openmpi-dev:1.9
+  IntelTestImage:
+    Description: The docker image reference for Intel tests.
+    Type: String
+    Default: 747101682576.dkr.ecr.us-east-2.amazonaws.com/jedi-oneapi-impi-dev:1.9
+  Gcc11NextTestImage:
+    Description: The docker image reference for the next release of GCC11 tests.
+    Type: String
+    Default: 747101682576.dkr.ecr.us-east-2.amazonaws.com/jedi-gcc-openmpi-dev:1.9-gcc11
+  GccNextTestImage:
+    Description: The docker image reference for the next release of GCC tests.
+    Type: String
+    Default: 747101682576.dkr.ecr.us-east-2.amazonaws.com/jedi-gcc-openmpi-dev:1.9
+  IntelNextTestImage:
+    Description: The docker image reference for the next release of Intel tests.
+    Type: String
+    Default: 747101682576.dkr.ecr.us-east-2.amazonaws.com/jedi-oneapi-impi-dev:1.9
+  PublicLogsBucketName:
+    Description: The name of the S3 bucket to store public build logs.
+    Type: String
+    Default: jedi-ci-build-public-logs
+  CIRepoBranchName:
+    Description: The branch name for the CI repo.
+    Type: String
+    Default: develop
+  TemplateBucketName:
+    Type: String
+    Description: The name of the bucket that contains CloudFormation templates and CI bootstrap code.
+    Default: jcsda-usaf-iac-artifacts
+  CachingBucketName:
+    Description: "The name of the bucket used for the build cache"
+    Type: String
+    Default: jcsda-usaf-ci-build-cache
+  BuildInfoBucketName:
+    Description: "The name of the bucket used for the build info json"
+    Type: String
+    Default: jcsda-usaf-ci-build-info
+  VpcId:
+    Description: The ID of the existing VPC to use.
+    Type: String
+    Default: vpc-0a8ede7352fb6fcf7
+  SubnetId:
+    Description: The ID of the existing Subnet to use.
+    Type: String
+    Default: subnet-0fb2eab7ed0b1046b
+  SecurityGroupId:
+    Description: The ID of the existing Security Group to use.
+    Type: String
+    Default: sg-0d2c9d4fc093282cd
+
+    
+Resources:
+
+  ###############################################
+  # IAM
+  ###############################################
+  BatchBuildContainerIamPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Path: "/service-role/"
+      PolicyDocument: !Sub |
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:GetBucketLocation",
+                        "s3:ListBucket",
+                        "s3:GetObject",
+                        "s3:GetObjectVersion"
+                    ],
+                    "Resource": [
+                        "arn:aws:s3:::${CachingBucketName}",
+                        "arn:aws:s3:::${CachingBucketName}/*",
+                        "arn:aws:s3:::${BuildInfoBucketName}",
+                        "arn:aws:s3:::${BuildInfoBucketName}/*",
+                        "arn:aws:s3:::${PublicLogsBucketName}",
+                        "arn:aws:s3:::${PublicLogsBucketName}/*",
+                        "arn:aws:s3:::${TemplateBucketName}",
+                        "arn:aws:s3:::${TemplateBucketName}/*"
+                    ]
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:PutObject",
+                        "s3:DeleteObject"
+                    ],
+                    "Resource": [
+                        "arn:aws:s3:::${CachingBucketName}/*",
+                        "arn:aws:s3:::${BuildInfoBucketName}/*",
+                        "arn:aws:s3:::${PublicLogsBucketName}/*"
+                    ]
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "secretsmanager:DescribeSecret",
+                        "secretsmanager:GetResourcePolicy",
+                        "secretsmanager:GetSecretValue",
+                        "secretsmanager:ListSecretVersionIds"
+                    ],
+                    "Resource": [
+                        "${GitHubAppSecretARN}"
+                    ]
+                }
+            ]
+        }
+  BatchBuildContainerRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/service-role/"
+      AssumeRolePolicyDocument: |
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": "sts:AssumeRole",
+                    "Principal": {
+                        "Service": [
+                            "ec2.amazonaws.com",
+                            "ecs-tasks.amazonaws.com"
+                        ]
+                    }
+                }
+            ]
+          }
+      MaxSessionDuration: 3600
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/AmazonElasticContainerRegistryPublicReadOnly
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+        - !Ref BatchBuildContainerIamPolicy
+
+  ###############################################
+  # Batch backend resources
+  ###############################################
+
+  ## KMS Key
+  # This KMS key is used by session manager in order to encrypt SSM-granted
+  # user sessions.
+  SessionManagerKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      EnableKeyRotation: true
+      KeySpec: SYMMETRIC_DEFAULT
+      PendingWindowInDays: 30
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: allowRootAndSSM
+        Statement:
+        - Sid: "AdministrativeAccess"
+          Effect: "Allow"
+          Principal:
+            AWS:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action:
+            - "kms:*"
+          Resource: "*"
+        - Sid: "AllowUseBySSM"
+          Effect: "Allow"
+          Principal:
+            Service: ssm.amazonaws.com
+          Action:
+            - "kms:Encrypt"
+            - "kms:Decrypt"
+            - "kms:ReEncrypt*"
+            - "kms:GenerateDataKey*"
+            - "kms:CreateGrant"
+            - "kms:ListGrants"
+            - "kms:DescribeKey"
+          Resource: "*"
+  ## IAM Resources:
+  # Policy used for the batch service role allowing it to use SSM.
+  SsmPolicyForServiceRole:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Path: "/service-role/"
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "ssmmessages:CreateControlChannel",
+                "ssmmessages:CreateDataChannel",
+                "ssmmessages:OpenControlChannel",
+                "ssmmessages:OpenDataChannel"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": ["s3:GetEncryptionConfiguration"],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": ["kms:Decrypt"],
+              "Resource": "${SessionManagerKmsKey.Arn}"
+            }
+          ]
+        }
+  # Role used by the AWS Batch service to orchestrate batch jobs. This
+  # role is attached to the AWS Batch compute environment definition.
+  BatchServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - batch.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
+  # Role used by the EC2 Container Service. This role is attached to the
+  # EC2 instances launched by AWS Batch via an instance profile.
+  EcsInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2008-10-17'
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - !Ref SsmPolicyForServiceRole
+  IamInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: EcsInstanceRole
+
+  ## Compute resources.
+  # AWS Batch requires quite a bit of compute environment configuration. Outside
+  # of CloudFormation many of these values are automatic. Some of the values
+  # here are important to the functioning of the CI system and they will have
+  # comments highlighting the issue they solve.
+  #VPC:
+  #  Type: AWS::EC2::VPC
+  #  Properties:
+  #    CidrBlock: 10.0.0.0/16
+  #InternetGateway:
+  #  Type: AWS::EC2::InternetGateway
+  #RouteTable:
+  #  Type: AWS::EC2::RouteTable
+  #  Properties:
+  #    VpcId:
+  #      Ref: VPC
+  #SecurityGroupWithEgress:
+  #  Type: AWS::EC2::SecurityGroup
+  #  Properties:
+  #    GroupDescription: Security group allowing outbound traffic.
+  #    VpcId: !Ref VPC
+  #    SecurityGroupEgress:
+  #      - IpProtocol: '-1'  # All protocols
+  #        CidrIp: 0.0.0.0/0
+  #VPCGatewayAttachment:
+  #  Type: AWS::EC2::VPCGatewayAttachment
+  #  Properties:
+  #    VpcId:
+  #      Ref: VPC
+  #    InternetGatewayId:
+  #      Ref: InternetGateway
+  #SecurityGroup:
+  #  Type: AWS::EC2::SecurityGroup
+  #  Properties:
+  #    GroupDescription: EC2 Security Group for instances launched in the VPC by Batch
+  #    VpcId:
+  #      Ref: VPC
+  #Subnet:
+  #  Type: AWS::EC2::Subnet
+  #  Properties:
+  #    CidrBlock: 10.0.0.0/24
+  #    VpcId:
+  #      Ref: VPC
+  #    MapPublicIpOnLaunch: 'True'
+  #Route:
+  #  Type: AWS::EC2::Route
+  #  Properties:
+  #    RouteTableId:
+  #      Ref: RouteTable
+  #    DestinationCidrBlock: 0.0.0.0/0
+  #    GatewayId:
+  #      Ref: InternetGateway
+  #SubnetRouteTableAssociation:
+  #  Type: AWS::EC2::SubnetRouteTableAssociation
+  #  Properties:
+  #    RouteTableId:
+  #      Ref: RouteTable
+  #    SubnetId:
+  #      Ref: Subnet
+  # This EC2 launch template is used to control properties of the EC2 instances
+  # used for the CI system. While batch can function without this template, the
+  # default EBS volume is far to small for our builds. Additionally this
+  # template allows us to tag storage and instances. 
+  EC2LaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateData:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId  # Use the input parameter for existing Security Group
+        BlockDeviceMappings:
+          - Ebs:
+              # Root volume.
+              Encrypted: True
+              DeleteOnTermination: True
+              # The default volume size of 30 GB is too small for CI tests.
+              VolumeSize: !Ref InstanceVolumeSize
+              VolumeType: gp3
+              Iops: 3000
+            DeviceName: /dev/xvda
+        TagSpecifications:
+          - ResourceType: volume
+            Tags:
+              - Key: project
+                Value: jedi-ci-action
+          - ResourceType: instance
+            Tags:
+              - Key: project
+                Value: jedi-ci-action
+              - Key: Name
+                Value: jedi-ci-action
+  # This compute environment is an essential part of the AWS Batch configuration
+  # and the options here can help control and manage costs incurred by the
+  # system.
+  ComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeResources:
+        Type: EC2
+        LaunchTemplate:
+          LaunchTemplateId: !Ref EC2LaunchTemplate
+        # By setting MinvCpus to zero, batch is allowed to tear down all EC2
+        # instances that are not in use. If this number is larger than 0, it
+        # will maintain at enough instances to meet the minimum. The parameter
+        # "DesiredvCpus" could also be used to increase the default number of
+        # CPUs kept available under no load.
+        MinvCpus: 0
+        MaxvCpus: 128
+        InstanceTypes:
+          - m5.2xlarge
+          - m5.4xlarge
+        Subnets:
+          - Ref: SubnetId
+        SecurityGroupIds:
+          - Ref: SecurityGroupId
+        InstanceRole:
+          Ref: IamInstanceProfile
+      ServiceRole:
+        Ref: BatchServiceRole
+  JobQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      Priority: 1
+      ComputeEnvironmentOrder:
+      - Order: 1
+        ComputeEnvironment:
+          Ref: ComputeEnvironment
+
+  ## CI job definitions for current release.
+  BuildGcc11JobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      JobDefinitionName: jedi-ci-action-gcc11
+      Type: container
+      ContainerProperties:
+        Image: !Ref Gcc11TestImage
+        Vcpus: 8
+        Memory: 30500
+        Ulimits:
+          - Name: stack
+            SoftLimit: 67092480
+            HardLimit: 67092480
+        ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
+        JobRoleArn: !Ref BatchBuildContainerRoleARN
+        Command:
+          - "bash"
+          - "-c"
+          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+        Environment:
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ''
+          - Name: CACHE_BUCKET
+            Value: !Ref CachingBucketName
+          - Name: GITHUB_APP_ID
+            Value: !Ref GitHubAppID
+          - Name: GITHUB_INSTALL_ID
+            Value: !Ref GitHubInstallID
+          - Name: CI_REPOSITORY_BRANCH
+            Value: !Ref CIRepoBranchName
+          - Name: PUBLIC_LOGS_BUCKET
+            Value: !Ref PublicLogsBucketName
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
+          - Name: CONTAINER_VERSION
+            Value: latest
+          - Name: JEDI_COMPILER
+            Value: gcc11
+          - Name: BUILD_IDENTITY
+            Value: ""
+          - Name: UNITTEST_TAG
+            Value: ""
+          - Name: TRIGGER_SHA
+            Value: ""
+          - Name: TRIGGER_PR
+            Value: ""
+          - Name: INTEGRATION_RUN_ID
+            Value: ""
+          - Name: UNIT_RUN_ID
+            Value: ""
+        Secrets:
+          - Name: GITHUB_APP_PRIVATE_KEY
+            ValueFrom: !Ref GitHubAppSecretARN
+      RetryStrategy:
+        Attempts: 1
+  BuildGccJobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      JobDefinitionName: jedi-ci-action-gcc
+      Type: container
+      ContainerProperties:
+        Image: !Ref GccTestImage
+        Vcpus: 8
+        Memory: 30500
+        Ulimits:
+          - Name: stack
+            SoftLimit: 67092480
+            HardLimit: 67092480
+        ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
+        JobRoleArn: !Ref BatchBuildContainerRoleARN
+        Command:
+          - "bash"
+          - "-c"
+          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+        Environment:
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ''
+          - Name: CACHE_BUCKET
+            Value: !Ref CachingBucketName
+          - Name: GITHUB_APP_ID
+            Value: !Ref GitHubAppID
+          - Name: GITHUB_INSTALL_ID
+            Value: !Ref GitHubInstallID
+          - Name: CI_REPOSITORY_BRANCH
+            Value: !Ref CIRepoBranchName
+          - Name: PUBLIC_LOGS_BUCKET
+            Value: !Ref PublicLogsBucketName
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
+          - Name: CONTAINER_VERSION
+            Value: latest
+          - Name: JEDI_COMPILER
+            Value: gcc
+          - Name: BUILD_IDENTITY
+            Value: ""
+          - Name: UNITTEST_TAG
+            Value: ""
+          - Name: TRIGGER_SHA
+            Value: ""
+          - Name: TRIGGER_PR
+            Value: ""
+          - Name: INTEGRATION_RUN_ID
+            Value: ""
+          - Name: UNIT_RUN_ID
+            Value: ""
+        Secrets:
+          - Name: GITHUB_APP_PRIVATE_KEY
+            ValueFrom: !Ref GitHubAppSecretARN
+      RetryStrategy:
+        Attempts: 1
+  BuildIntelJobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      JobDefinitionName: jedi-ci-action-intel
+      Type: container
+      ContainerProperties:
+        Image: !Ref IntelTestImage
+        Vcpus: 8
+        Memory: 30500
+        Ulimits:
+          - Name: stack
+            SoftLimit: 67092480
+            HardLimit: 67092480
+        ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
+        JobRoleArn: !Ref BatchBuildContainerRoleARN
+        Command:
+          - "bash"
+          - "-c"
+          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+        Environment:
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ''
+          - Name: CACHE_BUCKET
+            Value: !Ref CachingBucketName
+          - Name: GITHUB_APP_ID
+            Value: !Ref GitHubAppID
+          - Name: GITHUB_INSTALL_ID
+            Value: !Ref GitHubInstallID
+          - Name: CI_REPOSITORY_BRANCH
+            Value: !Ref CIRepoBranchName
+          - Name: PUBLIC_LOGS_BUCKET
+            Value: !Ref PublicLogsBucketName
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
+          - Name: CONTAINER_VERSION
+            Value: latest
+          - Name: JEDI_COMPILER
+            Value: intel
+          - Name: BUILD_IDENTITY
+            Value: ""
+          - Name: UNITTEST_TAG
+            Value: ""
+          - Name: TRIGGER_SHA
+            Value: ""
+          - Name: TRIGGER_PR
+            Value: ""
+          - Name: INTEGRATION_RUN_ID
+            Value: ""
+          - Name: UNIT_RUN_ID
+            Value: ""
+        Secrets:
+          - Name: GITHUB_APP_PRIVATE_KEY
+            ValueFrom: !Ref GitHubAppSecretARN
+      RetryStrategy:
+        Attempts: 1
+
+  ## CI job definitions for next release.
+  BuildGcc11NextJobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      JobDefinitionName: jedi-ci-action-gcc11-next
+      Type: container
+      ContainerProperties:
+        Image: !Ref Gcc11NextTestImage
+        Vcpus: 8
+        Memory: 30500
+        Ulimits:
+          - Name: stack
+            SoftLimit: 67092480
+            HardLimit: 67092480
+        ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
+        JobRoleArn: !Ref BatchBuildContainerRoleARN
+        Command:
+          - "bash"
+          - "-c"
+          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+        Environment:
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ''
+          - Name: CACHE_BUCKET
+            Value: !Ref CachingBucketName
+          - Name: GITHUB_APP_ID
+            Value: !Ref GitHubAppID
+          - Name: GITHUB_INSTALL_ID
+            Value: !Ref GitHubInstallID
+          - Name: CI_REPOSITORY_BRANCH
+            Value: !Ref CIRepoBranchName
+          - Name: PUBLIC_LOGS_BUCKET
+            Value: !Ref PublicLogsBucketName
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
+          - Name: CONTAINER_VERSION
+            Value: next
+          - Name: JEDI_COMPILER
+            Value: gcc11
+          - Name: BUILD_IDENTITY
+            Value: ""
+          - Name: UNITTEST_TAG
+            Value: ""
+          - Name: TRIGGER_SHA
+            Value: ""
+          - Name: TRIGGER_PR
+            Value: ""
+          - Name: INTEGRATION_RUN_ID
+            Value: ""
+          - Name: UNIT_RUN_ID
+            Value: ""
+        Secrets:
+          - Name: GITHUB_APP_PRIVATE_KEY
+            ValueFrom: !Ref GitHubAppSecretARN
+      RetryStrategy:
+        Attempts: 1
+  BuildGccNextJobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      JobDefinitionName: jedi-ci-action-gcc-next
+      Type: container
+      ContainerProperties:
+        Image: !Ref GccNextTestImage
+        Vcpus: 8
+        Memory: 30500
+        Ulimits:
+          - Name: stack
+            SoftLimit: 67092480
+            HardLimit: 67092480
+        ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
+        JobRoleArn: !Ref BatchBuildContainerRoleARN
+        Command:
+          - "bash"
+          - "-c"
+          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+        Environment:
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ''
+          - Name: CACHE_BUCKET
+            Value: !Ref CachingBucketName
+          - Name: GITHUB_APP_ID
+            Value: !Ref GitHubAppID
+          - Name: GITHUB_INSTALL_ID
+            Value: !Ref GitHubInstallID
+          - Name: CI_REPOSITORY_BRANCH
+            Value: !Ref CIRepoBranchName
+          - Name: PUBLIC_LOGS_BUCKET
+            Value: !Ref PublicLogsBucketName
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
+          - Name: CONTAINER_VERSION
+            Value: next
+          - Name: JEDI_COMPILER
+            Value: gcc
+          - Name: BUILD_IDENTITY
+            Value: ""
+          - Name: UNITTEST_TAG
+            Value: ""
+          - Name: TRIGGER_SHA
+            Value: ""
+          - Name: TRIGGER_PR
+            Value: ""
+          - Name: INTEGRATION_RUN_ID
+            Value: ""
+          - Name: UNIT_RUN_ID
+            Value: ""
+        Secrets:
+          - Name: GITHUB_APP_PRIVATE_KEY
+            ValueFrom: !Ref GitHubAppSecretARN
+      RetryStrategy:
+        Attempts: 1
+  BuildIntelNextJobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      JobDefinitionName: jedi-ci-action-intel-next
+      Type: container
+      ContainerProperties:
+        Image: !Ref IntelNextTestImage
+        Vcpus: 8
+        Memory: 30500
+        Ulimits:
+          - Name: stack
+            SoftLimit: 67092480
+            HardLimit: 67092480
+        ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
+        JobRoleArn: !Ref BatchBuildContainerRoleARN
+        Command:
+          - "bash"
+          - "-c"
+          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+        Environment:
+          - Name: CONFIGURED_BUNDLE_TARBALL
+            Value: ''
+          - Name: CACHE_BUCKET
+            Value: !Ref CachingBucketName
+          - Name: GITHUB_APP_ID
+            Value: !Ref GitHubAppID
+          - Name: GITHUB_INSTALL_ID
+            Value: !Ref GitHubInstallID
+          - Name: CI_REPOSITORY_BRANCH
+            Value: !Ref CIRepoBranchName
+          - Name: PUBLIC_LOGS_BUCKET
+            Value: !Ref PublicLogsBucketName
+          - Name: TRIGGER_REPO_FULL
+            Value: unknown
+          - Name: DEBUG_TIME_SECONDS
+            Value: "0"
+          - Name: CONTAINER_VERSION
+            Value: next
+          - Name: JEDI_COMPILER
+            Value: intel
+          - Name: BUILD_IDENTITY
+            Value: ""
+          - Name: UNITTEST_TAG
+            Value: ""
+          - Name: TRIGGER_SHA
+            Value: ""
+          - Name: TRIGGER_PR
+            Value: ""
+          - Name: INTEGRATION_RUN_ID
+            Value: ""
+          - Name: UNIT_RUN_ID
+            Value: ""
+        Secrets:
+          - Name: GITHUB_APP_PRIVATE_KEY
+            ValueFrom: !Ref GitHubAppSecretARN
+      RetryStrategy:
+        Attempts: 1
+
+Outputs:
+  ComputeEnvironmentArn:
+    Value:
+      Ref: ComputeEnvironment
+  JobQueueArn:
+    Value:
+      Ref: JobQueue
+  BuildGcc11JobDefinitionArn:
+    Value:
+      Ref: BuildGcc11JobDefinition
+  BuildGccJobDefinitionArn:
+    Value:
+      Ref: BuildGccJobDefinition
+  BuildIntelJobDefinitionArn:
+    Value:
+      Ref: BuildIntelJobDefinition
+  BuildGcc11NextJobDefinitionArn:
+    Value:
+      Ref: BuildGcc11NextJobDefinition
+  BuildGccNextJobDefinitionArn:
+    Value:
+      Ref: BuildGccNextJobDefinition
+  BuildIntelNextJobDefinitionArn:
+    Value:
+      Ref: BuildIntelNextJobDefinition
+  BatchBuildContainerRoleARN:
+        Description: The ARN of the role used for AWS Batch builds.
+        Value: !GetAtt BatchBuildContainerRole.Arn

@@ -28,6 +28,8 @@ BUILD_ENVIRONMENTS = ['gcc', 'intel', 'gcc11']
 
 LOG = logging.getLogger("implementation")
 
+BUILD_CACHE_BUCKET = os.environ.get('BUILD_CACHE_BUCKET', 'jcsda-usaf-ci-build-cache')
+
 class TimeCheckpointer:
     def __init__(self):
         self._checkpoint_time = time.time()
@@ -47,11 +49,12 @@ def check_output(args, **kwargs):
     return subprocess.check_output(args, **kwargs)
 
 
-def upload_to_aws(bucket_name, s3_client, json_data, s3_file):
+def upload_to_aws(bucket_name, s3_client, tarball_path, s3_file):
     """Upload file to S3 bucket"""
     if isinstance(json_data, str):
         json_data = json_data.encode('utf-8')
-    s3_client.put_object(Body=json_data, Bucket=bucket_name, Key=s3_file)
+    with open(tarball_path, 'rb') as f:
+        s3_client.put_object(Body=f, Bucket=bucket_name, Key=s3_file)
     s3_path = f's3://{bucket_name}/{s3_file}'
     return s3_path
 
@@ -167,8 +170,11 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
             build_group_commit_map=repo_to_commit_hash,
         )
 
-    # Zip the new bundle.
-    # Create a tarball of the bundle repository
+    # Add resources to the bundle by copying all files in /app/shell to jedi_ci_resources
+    check_output(['mkdir', '-p', os.path.join(bundle_repo_path, 'jedi_ci_resources')])
+    shutil.copytree('/app/shell', os.path.join(bundle_repo_path, 'jedi_ci_resources'))
+
+    # Create a tarball  the new bundle (with test resources).
     LOG.info(f"Creating bundle.tar.gz from {bundle_repo_path}")
     bundle_tarball = "bundle.tar.gz"
 
@@ -177,6 +183,9 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
     LOG.info(f"Created bundle tarball at {bundle_tarball}")
 
     # Upload the bundle to S3.
+    s3_file = f'ci_action_bundles/{environment_config["repository"]}/{environment_config["pull_request_number"]}-{environment_config["trigger_commit"]}-{ci_config["bundle_name"]}.tar.gz'
+    s3_client = boto3.client('s3')
+    s3_path = upload_to_aws(BUILD_CACHE_BUCKET, s3_client, bundle_tarball, s3_file)
 
     # Launch the test
 
