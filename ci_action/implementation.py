@@ -34,6 +34,7 @@ class TimeCheckpointer:
         self._checkpoint_time = time_now
         return f'<time elapsed: {checkpoint_delta} seconds>'
 
+
 def check_output(args, **kwargs):
     """
     Wrapper around subprocess.check_output that logs the command and its output.

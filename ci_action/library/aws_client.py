@@ -92,7 +92,7 @@ class BatchSubmitConfigBuilder(object):
     def get_latest_job_arn(self, job_name_map, job_environment):
         """Get the job arn for a given environment."""
         client = get_batch_client()
-        batch_job_name = self._JOB_NAME_MAP[job_environment]
+        batch_job_name = job_name_map[job_environment]
         response = client.describe_job_definitions(
             jobDefinitionName=batch_job_name,
             status='ACTIVE',

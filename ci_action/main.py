@@ -13,6 +13,7 @@ import pprint
 from ci_action import implementation as ci_implementation
 import argparse
 
+
 # This configuration is used to store references to AWS resources
 # specific to our cloud formation stack.
 JEDI_CI_INFRA_CONFIG = {
@@ -66,6 +67,7 @@ def setup_git_credentials(github_token):
     else:
         LOG.info("GITHUB_TOKEN is not set. Git operations may require authentication.")
 
+
 def list_directory(directory_path):
     """
     Log the contents of the specified directory
@@ -115,6 +117,7 @@ def get_environment_config():
     }
     return config
 
+
 def main():
     """This function is the entrypoint for the CI action, it gets all configuration
     information and then calls the prepare_and_launch_ci_test function.
@@ -153,9 +156,10 @@ def main():
 
     # Get environment attributes set by GitHub.
     env_config = get_environment_config()
-    LOG.info(f"Environment config:")
-    pretty_config = pprint.pformat(env_config)
-    LOG.info(pretty_config)
+    # This may be useful for debugging but is overly verbose for the CI action.
+    #LOG.info(f"Environment config:")
+    #pretty_config = pprint.pformat(env_config)
+    #LOG.info(pretty_config)
 
     # Setup Git credentials before doing anything else
     setup_git_credentials(os.environ.get('JEDI_CI_TOKEN'))
@@ -167,8 +171,7 @@ def main():
         ci_config=ci_config,
         bundle_repo_path=os.path.join(workspace_dir, 'bundle'),
         target_repo_path=target_repo_full_path)
-   
-    
+
     return 0
 
 if __name__ == "__main__":
