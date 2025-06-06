@@ -58,35 +58,25 @@ class BatchSubmitConfig(object):
         self.build_environment = build_environment
 
 
-class BatchSubmitConfigFromEnv(object):
+class BatchSubmitConfigBuilder(object):
     """Collect batch job config values from the environment.
 
     This class is configured using the following environment variables. If any
     are unset, the class cannot be instantiated.
     """
 
-    # These names come from the batch jobs defined in //cfn/jedi-ci-action.yaml.
-    _JOB_NAME_MAP = {
-        'gcc11': 'jedi-ci-action-gcc11',
-        'gcc11-next': 'jedi-ci-action-gcc11',
-        'gcc': 'jedi-ci-action-gcc',
-        'gcc-next': 'jedi-ci-action-gcc-next',
-        'intel': 'jedi-ci-action-intel',
-        'intel-next': 'jedi-ci-action-intel-next',
-    }
-
-    def __init__(self, timeout):
+    def __init__(self, job_name_map, job_queue, timeout):
         """Init from environment."""
 
         self._job_def_map = {
-            'gcc11': self.get_latest_job_arn('gcc11'),
-            'gcc': self.get_latest_job_arn('gcc'),
-            'intel': self.get_latest_job_arn('intel'),
-            'gcc11-next': self.get_latest_job_arn('gcc11-next'),
-            'gcc-next': self.get_latest_job_arn('gcc-next'),
-            'intel-next': self.get_latest_job_arn('intel-next')
+            'gcc11': self.get_latest_job_arn(job_name_map, 'gcc11'),
+            'gcc': self.get_latest_job_arn(job_name_map, 'gcc'),
+            'intel': self.get_latest_job_arn(job_name_map, 'intel'),
+            'gcc11-next': self.get_latest_job_arn(job_name_map, 'gcc11-next'),
+            'gcc-next': self.get_latest_job_arn(job_name_map, 'gcc-next'),
+            'intel-next': self.get_latest_job_arn(job_name_map, 'intel-next')
         }
-        self._job_queue = os.environ.get('BATCH_JOB_QUEUE', '')
+        self._job_queue = job_queue
         self._timeout = timeout
         # Validate job definition ARNs.
         for job_name, job_arn in self._job_def_map.items():
@@ -99,7 +89,7 @@ class BatchSubmitConfigFromEnv(object):
                 f'BATCH_JOB_QUEUE "{self._job_queue}" is not an AWS Batch '
                 'service arn. Value must start with "arn:aws:batch"')
 
-    def get_latest_job_arn(self, job_environment):
+    def get_latest_job_arn(self, job_name_map, job_environment):
         """Get the job arn for a given environment."""
         client = get_batch_client()
         batch_job_name = self._JOB_NAME_MAP[job_environment]
