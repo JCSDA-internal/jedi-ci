@@ -173,7 +173,6 @@ def prepare_and_launch_ci_test(environment_config, ci_config, bundle_repo_path, 
         )
 
     # Add resources to the bundle by copying all files in /app/shell to jedi_ci_resources
-    check_output(['mkdir', '-p', os.path.join(bundle_repo_path, 'jedi_ci_resources')])
     shutil.copytree('/app/shell', os.path.join(bundle_repo_path, 'jedi_ci_resources'))
 
     # Create a tarball  the new bundle (with test resources).
