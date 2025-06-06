@@ -164,15 +164,15 @@ def submit_test_batch_job(
                 },
                 {
                     'name': 'TRIGGER_PR',
-                    'value': trigger_pr,
+                    'value': str(trigger_pr),
                 },
                 {
                     'name': 'INTEGRATION_RUN_ID',
-                    'value': integration_run_id,
+                    'value': str(integration_run_id),
                 },
                 {
                     'name': 'UNIT_RUN_ID',
-                    'value': unit_run_id,
+                    'value': str(unit_run_id),
                 },
             ],
         },
