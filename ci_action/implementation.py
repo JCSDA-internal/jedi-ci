@@ -205,7 +205,7 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
             repo_name=environment_config['repo_name'],
             commit=environment_config['trigger_commit_short'],
             pr=environment_config['pull_request_number'],
-            configured_bundle_tarball=environment_config.get('configured_bundle_tarball', ''),  # TODO: set this value appropriately
+            configured_bundle_tarball=s3_path,
             debug_time_seconds=debug_time,
             build_identity=build_identity,
             unittest_tag=ci_config['test_tag'],

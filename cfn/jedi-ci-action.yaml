@@ -166,6 +166,89 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
         - !Ref BatchBuildContainerIamPolicy
 
+  # IAM Role used to run the CI action, it can initiate jobs
+  GitHubActionsIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/service-role/"
+      AssumeRolePolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                },
+                "StringLike": {
+                  "token.actions.githubusercontent.com:sub": [
+                    "repo:JCSDA-internal/*:*",
+                    "repo:JCSDA/*:*"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      MaxSessionDuration: 3600
+      ManagedPolicyArns:
+        - !Ref GitHubActionsIAMPolicy
+  GitHubActionsIAMPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowSubmitToQueue",
+              "Effect": "Allow",
+              "Action": [
+                "batch:SubmitJob"
+              ],
+              "Resource": [
+                "${JobQueue}",
+                "${BuildGcc11JobDefinition}",
+                "${BuildGccJobDefinition}",
+                "${BuildIntelJobDefinition}",
+                "${BuildGcc11NextJobDefinition}",
+                "${BuildGccNextJobDefinition}",
+                "${BuildIntelNextJobDefinition}"
+              ]
+            },
+            {
+              "Sid": "AllowListJobs",
+              "Effect": "Allow",
+              "Action": [
+                "batch:List*",
+                "batch:Describe*"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "AllowBucketWrite",
+              "Effect": "Allow",
+              "Resource": [
+                "arn:aws:s3:::${CachingBucketName}",
+                "arn:aws:s3:::${CachingBucketName}/*",
+                "arn:aws:s3:::${BuildInfoBucketName}",
+                "arn:aws:s3:::${BuildInfoBucketName}/*"
+              ],
+              "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:ListBucket"
+              ]
+            }
+          ]
+        }
+
+
   ###############################################
   # Batch backend resources
   ###############################################
@@ -423,7 +506,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -480,7 +563,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -537,7 +620,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -596,7 +679,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -653,7 +736,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -710,7 +793,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
