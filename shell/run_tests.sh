@@ -22,8 +22,8 @@
 #
 
 # Load common function definitions.
-source $WORKDIR/CI/src/test_runner/util.sh
-source $WORKDIR/CI/src/test_runner/environment.sh
+source $WORKDIR/bundle/jedi_ci_resources/environment.sh
+source $WORKDIR/bundle/jedi_ci_resources/util.sh
 
 # Return code for any line of shell code containing a pipe or redirect will
 # come from the inner-most executable command.
@@ -82,7 +82,7 @@ jedi_cmake_ROOT=${jedi_cmake_ROOT}
 OMPI_ALLOW_RUN_AS_ROOT=${OMPI_ALLOW_RUN_AS_ROOT}
 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=${OMPI_ALLOW_RUN_AS_ROOT_CONFIRM}
 OMPI_MCA_rmaps_base_oversubscribe=${OMPI_MCA_rmaps_base_oversubscribe}
-CI_CODE_PATH=${CI_CODE_PATH}
+CI_SCRIPTS_DIR=${CI_SCRIPTS_DIR}
 CC="${CC}"
 CXX="${CXX}"
 EOF
@@ -208,16 +208,16 @@ echo "-------------------------------------"
 cd "${BUILD_DIR}"
 
 # Fetch any pre-built artifacts from the build cache.
-$WORKDIR/CI/src/test_runner/binary_cache.py fetch \
-    --build-info-json $BUILD_JSON \
-    --test-manifest $WORKDIR/CI/test_manifest.json \
-    --cache-bucket jcsda-usaf-ci-build-cache \
-    --container-version ${CONTAINER_VERSION:-latest} \
-    --compiler $JEDI_COMPILER \
-    --platform "$(uname)-$(uname -p)-batch" \
-    --build-directory $BUILD_DIR \
-    --refresh-cache $REFRESH_CACHE_ON_FETCH \
-    --whitelist $UNIT_DEPENDENCIES $TRIGGER_REPO
+#$WORKDIR/CI/src/test_runner/binary_cache.py fetch \
+#    --build-info-json $BUILD_JSON \
+#    --test-manifest $WORKDIR/CI/test_manifest.json \
+#    --cache-bucket jcsda-usaf-ci-build-cache \
+#    --container-version ${CONTAINER_VERSION:-latest} \
+#    --compiler $JEDI_COMPILER \
+#    --platform "$(uname)-$(uname -p)-batch" \
+#    --build-directory $BUILD_DIR \
+#    --refresh-cache $REFRESH_CACHE_ON_FETCH \
+#    --whitelist $UNIT_DEPENDENCIES $TRIGGER_REPO
 
 ecbuild \
       -Wno-dev \
@@ -299,15 +299,15 @@ if [ $? -ne 0 ]; then
 fi
 
 # Fetch any pre-built artifacts from the build cache.
-$WORKDIR/CI/src/test_runner/binary_cache.py fetch \
-    --build-info-json $BUILD_JSON \
-    --test-manifest $WORKDIR/CI/test_manifest.json \
-    --cache-bucket jcsda-usaf-ci-build-cache \
-    --container-version ${CONTAINER_VERSION:-latest} \
-    --compiler $JEDI_COMPILER \
-    --platform "$(uname)-$(uname -p)-batch" \
-    --refresh-cache $REFRESH_CACHE_ON_FETCH \
-    --build-directory $BUILD_DIR
+#$WORKDIR/CI/src/test_runner/binary_cache.py fetch \
+#    --build-info-json $BUILD_JSON \
+#    --test-manifest $WORKDIR/CI/test_manifest.json \
+#    --cache-bucket jcsda-usaf-ci-build-cache \
+#    --container-version ${CONTAINER_VERSION:-latest} \
+#    --compiler $JEDI_COMPILER \
+#    --platform "$(uname)-$(uname -p)-batch" \
+#    --refresh-cache $REFRESH_CACHE_ON_FETCH \
+#    --build-directory $BUILD_DIR
 
 ecbuild \
       -Wno-dev \
@@ -354,15 +354,15 @@ ls -al "${BUILD_DIR}/Testing/${TEST_TAG}/"
 util.check_run_end $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID 3
 
 #echo "Pushing build artifacts to cache."
-$WORKDIR/CI/src/test_runner/binary_cache.py write \
-    --build-info-json $BUILD_JSON \
-    --cache-bucket jcsda-usaf-ci-build-cache \
-    --container-version ${CONTAINER_VERSION:-latest} \
-    --compiler $JEDI_COMPILER \
-    --platform "$(uname)-$(uname -p)-batch" \
-    --build-directory $BUILD_DIR \
-    --refresh-cache $REFRESH_CACHE_ON_WRITE \
-    --test-manifest $WORKDIR/CI/test_manifest.json
+#$WORKDIR/CI/src/test_runner/binary_cache.py write \
+#    --build-info-json $BUILD_JSON \
+#    --cache-bucket jcsda-usaf-ci-build-cache \
+#    --container-version ${CONTAINER_VERSION:-latest} \
+#    --compiler $JEDI_COMPILER \
+#    --platform "$(uname)-$(uname -p)-batch" \
+#    --build-directory $BUILD_DIR \
+#    --refresh-cache $REFRESH_CACHE_ON_WRITE \
+#    --test-manifest $WORKDIR/CI/test_manifest.json
 
 # Upload codecov data if gcc compiler is used.
 if [ "$JEDI_COMPILER" = "gcc" ] && [ -f "${JEDI_BUNDLE_DIR}/${TRIGGER_REPO}/.codecov.yml" ]; then
