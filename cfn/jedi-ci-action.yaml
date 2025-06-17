@@ -506,7 +506,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -563,7 +563,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -620,7 +620,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -679,7 +679,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -736,7 +736,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -793,7 +793,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
