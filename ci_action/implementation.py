@@ -161,7 +161,7 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
     # Upload the bundle to S3.
     s3_file = f'ci_action_bundles/{environment_config["repository"]}/{environment_config["pull_request_number"]}-{environment_config["trigger_commit"]}-{ci_config["bundle_name"]}.tar.gz'
     s3_client = boto3.client('s3')
-    s3_path = upload_to_aws(BUILD_CACHE_BUCKET, s3_client, bundle_tarball, s3_file)
+    configured_bundle_tarball_s3_path = upload_to_aws(BUILD_CACHE_BUCKET, s3_client, bundle_tarball, s3_file)
 
     # Launch the test
     test_select = test_annotations.test_select
@@ -205,7 +205,7 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
             repo_name=environment_config['repo_name'],
             commit=environment_config['trigger_commit_short'],
             pr=environment_config['pull_request_number'],
-            configured_bundle_tarball=s3_path,
+            configured_bundle_tarball=configured_bundle_tarball_s3_path,
             debug_time_seconds=debug_time,
             build_identity=build_identity,
             unittest_tag=ci_config['test_tag'],

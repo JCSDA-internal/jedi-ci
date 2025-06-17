@@ -506,7 +506,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -524,7 +524,7 @@ Resources:
             Value: latest
           - Name: TRIGGER_REPO_FULL
             Value: unknown
-          - Name: CONFIGURED_BUNDLE_TARBALL
+          - Name: CONFIGURED_BUNDLE_TARBALL_S3
             Value: ""
           - Name: DEBUG_TIME_SECONDS
             Value: "0"
@@ -563,7 +563,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -581,7 +581,7 @@ Resources:
             Value: latest
           - Name: TRIGGER_REPO_FULL
             Value: unknown
-          - Name: CONFIGURED_BUNDLE_TARBALL
+          - Name: CONFIGURED_BUNDLE_TARBALL_S3
             Value: ""
           - Name: DEBUG_TIME_SECONDS
             Value: "0"
@@ -620,7 +620,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -638,7 +638,7 @@ Resources:
             Value: latest
           - Name: TRIGGER_REPO_FULL
             Value: unknown
-          - Name: CONFIGURED_BUNDLE_TARBALL
+          - Name: CONFIGURED_BUNDLE_TARBALL_S3
             Value: ""
           - Name: DEBUG_TIME_SECONDS
             Value: "0"
@@ -679,7 +679,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -697,7 +697,7 @@ Resources:
             Value: next
           - Name: TRIGGER_REPO_FULL
             Value: unknown
-          - Name: CONFIGURED_BUNDLE_TARBALL
+          - Name: CONFIGURED_BUNDLE_TARBALL_S3
             Value: ""
           - Name: DEBUG_TIME_SECONDS
             Value: "0"
@@ -736,7 +736,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -754,7 +754,7 @@ Resources:
             Value: next
           - Name: TRIGGER_REPO_FULL
             Value: unknown
-          - Name: CONFIGURED_BUNDLE_TARBALL
+          - Name: CONFIGURED_BUNDLE_TARBALL_S3
             Value: ""
           - Name: DEBUG_TIME_SECONDS
             Value: "0"
@@ -793,7 +793,7 @@ Resources:
         Command:
           - "bash"
           - "-c"
-          - !Sub "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp s3://${CachingBucketName}/$CONFIGURED_BUNDLE_TARBALL /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
+          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz -C /workdir/bundle && chmod +x /workdir/bundle/bootstrap_test.sh && /workdir/bundle/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -811,7 +811,7 @@ Resources:
             Value: next
           - Name: TRIGGER_REPO_FULL
             Value: unknown
-          - Name: CONFIGURED_BUNDLE_TARBALL
+          - Name: CONFIGURED_BUNDLE_TARBALL_S3
             Value: ""
           - Name: DEBUG_TIME_SECONDS
             Value: "0"

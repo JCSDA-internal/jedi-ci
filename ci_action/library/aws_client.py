@@ -151,7 +151,7 @@ def submit_test_batch_job(
                     'value': f'{debug_time_seconds}',
                 },
                 {
-                    'name': 'CONFIGURED_BUNDLE_TARBALL',
+                    'name': 'CONFIGURED_BUNDLE_TARBALL_S3',
                     'value': configured_bundle_tarball,
                 },
                 {
