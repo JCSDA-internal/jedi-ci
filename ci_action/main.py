@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+This is the entrypoint for the JEDI CI action, it is responsible for
+verifying and fetching the environment and for invoking the main
+implementation of the CI action.
+"""
 
 import os
 import sys
@@ -68,19 +73,6 @@ def setup_git_credentials(github_token):
         LOG.info("GITHUB_TOKEN is not set. Git operations may require authentication.")
 
 
-def list_directory(directory_path):
-    """
-    Log the contents of the specified directory
-    """
-    LOG.info(f"Files in directory: {directory_path}")
-    try:
-        files = os.listdir(directory_path)
-        for file in sorted(files):
-            LOG.info(f"  {file}")
-    except Exception as e:
-        LOG.info(f"Error listing files in {directory_path}: {str(e)}")
-
-
 def get_environment_config():
     """Pull config data from GitHub action environment.
 
@@ -140,7 +132,6 @@ def main():
             LOG.info(f"{key}: {value}")
         current_dir = os.getcwd()
         LOG.info(f"Current directory: {current_dir}")
-        list_directory(current_dir)
         return 0
 
     workspace_dir = os.environ.get('GITHUB_WORKSPACE', os.getcwd())
