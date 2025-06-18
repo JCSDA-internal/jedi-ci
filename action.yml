@@ -3,41 +3,10 @@ description: 'GitHub Action to replace the Lambda actuator and CI test startup s
 author: 'JCSDA'
 
 inputs:
-  #github_token:
-  #  description: 'GitHub token for API access'
-  #  required: true
-  #repository:
-  #  description: 'Target repository name'
-  #  required: true
-  #commit_sha:
-  #  description: 'Commit SHA to test'
-  #  required: true
-  #pr_number:
-  #  description: 'PR number (if applicable)'
-  #  required: false
-  #  default: '0'
-  #manifest_name:
-  #  description: 'Manifest name to use'
-  #  required: true
-  #test_tag:
-  #  description: 'Test tag to identify the test run'
-  #  required: true
-  #compiler:
-  #  description: 'Compiler to use (gcc, intel, gcc11)'
-  #  required: true
-  #  default: 'gcc11'
   container_version:
     description: 'Container version (latest, next)'
     required: true
     default: 'latest'
-  skip_cache:
-    description: 'Skip using cache'
-    required: false
-    default: 'false'
-  rebuild_cache:
-    description: 'Force rebuilding of cache'
-    required: false
-    default: 'false'
   jedi_bundle_branch:
     description: 'JEDI bundle branch'
     required: false
