@@ -197,12 +197,16 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
             environment_config['trigger_commit'],
             test_annotations.next_ci_suffix)
         LOG.info(f'{timer.checkpoint()}\nCreated check runs for {build_environment}.')
+
         # Note checkrun_id_map is dict {'unit': unit_run.id, 'integration': integration_run.id}
         debug_time = 60*30 if test_annotations.debug_mode else 0
         build_identity = f'{environment_config["repo_name"]}-{environment_config["pull_request_number"]}-{environment_config["trigger_commit_short"]}-{build_environment}'
+        repo_name_full = f'{environment_config["owner"]}/{environment_config["repo_name"]}'
+
         job = aws_client.submit_test_batch_job(
             config=batch_config_builder.get_config(build_environment + test_annotations.next_ci_suffix),
             repo_name=environment_config['repo_name'],
+            repo_name_full=repo_name_full,
             commit=environment_config['trigger_commit_short'],
             pr=environment_config['pull_request_number'],
             configured_bundle_tarball=configured_bundle_tarball_s3_path,

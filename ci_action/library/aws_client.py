@@ -116,6 +116,7 @@ class BatchSubmitConfigBuilder(object):
 def submit_test_batch_job(
         config: BatchSubmitConfig,
         repo_name: str,
+        repo_name_full: str,
         commit: str,
         pr: int,
         configured_bundle_tarball: str,
@@ -141,6 +142,10 @@ def submit_test_batch_job(
                 {
                     'name': 'TRIGGER_REPO',
                     'value': repo_name,
+                },
+                {
+                    'name': 'TRIGGER_REPO_FULL',
+                    'value': repo_name_full,
                 },
                 {
                     'name': 'BUILD_IDENTITY',
