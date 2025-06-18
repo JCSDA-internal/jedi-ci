@@ -156,10 +156,6 @@ def main():
 
     # Get environment attributes set by GitHub.
     env_config = get_environment_config()
-    # This may be useful for debugging but is overly verbose for the CI action.
-    #LOG.info(f"Environment config:")
-    #pretty_config = pprint.pformat(env_config)
-    #LOG.info(pretty_config)
 
     # Setup Git credentials before doing anything else
     setup_git_credentials(os.environ.get('JEDI_CI_TOKEN'))

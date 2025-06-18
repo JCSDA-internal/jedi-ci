@@ -13,41 +13,6 @@ def get_batch_client():
     return boto3.session.Session().client(service_name='batch')
 
 
-def ttl_lru_cache(ttl, maxsize=100):
-    """Least-recently-used (LRU) cache function decorator with time-to-live
-    (TTL) windowing.
-
-    This cache is not the most advanced implementation of the idea but it
-    is (relatively) simple. The TTL is enforced via time windowing by feeding
-    the time window to the builtin LRU cache as a parameter. While cached
-    objects may expire sooner than strictly necessary, the cache will never
-    return objects that have outlived their TTL.
-
-    Args:
-      ttl: the number of seconds for cache item TTL.
-      maxsize: the maximum number of items allowed in the cache before
-               new items evict the least recently used items.
-    """
-
-    def decorator(f):
-        # Define the cached function that will be called.
-        @functools.lru_cache(maxsize)
-        def ttl_keyed_function(*args, ttl_hash, **kwargs):
-            del ttl_hash  # The hash is only used to key the lru_cache.
-            return f(*args, **kwargs)
-
-        # The wrapped function with the original signature will generate the
-        # TTL hash and call the TTL keyed function. This function will be
-        # returned by the decorator.
-        @functools.wraps(f)
-        def wrapped_func_hidden_ttl_key(*args, **kwargs):
-            return ttl_keyed_function(
-                *args, ttl_hash=int(time.time()/ttl), **kwargs)
-
-        return wrapped_func_hidden_ttl_key
-    return decorator
-
-
 class BatchSubmitConfig(object):
     """A batch job config used to submit an AWS batch job."""
 
