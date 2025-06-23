@@ -108,14 +108,12 @@ set -x
 # Setup and run tests.
 #
 
-
 #REFRESH_CACHE_ON_FETCH="$(jq -r ".skip_cache" $BUILD_JSON)"
 #REFRESH_CACHE_ON_WRITE="$(jq -r ".rebuild_cache" $BUILD_JSON)"
 #JEDI_BUNDLE_BRANCH="$(jq -r ".jedi_bundle_branch" $BUILD_JSON)"
 
 # Extract just the repo name from the full repository path
 TRIGGER_REPO=$(echo "$TRIGGER_REPO_FULL" | cut -d'/' -f2)
-
 
 
 # Generate the version ref flag value used later for build config. Ignore
@@ -161,14 +159,15 @@ cp "${SCRIPT_DIR}/ctest_assets/cdash-integration.cmake" "${JEDI_BUNDLE_DIR}/cmak
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#TEST_TARGET_NAME#${TRIGGER_REPO}#g" "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
-echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
-echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
-echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
-echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
+# Update the integration test CMakeLists.txt file to include cdash integration.
+echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
 
 # Switch to the unittest and integration CMakeLists.txt files.
-cp $WORKDIR/bundle/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
-cp $WORKDIR/bundle/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
+cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
+cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
 
 
 if [ $? -ne 0 ]; then
@@ -196,28 +195,14 @@ if  grep -q -e "ropp-ufo" <<< $UNIT_DEPENDENCIES; then
     COMPILER_FLAGS+=( -DBUILD_ROPP=ON )
 fi
 
-
 echo "---- JEDI Bundle CMakeLists.txt -----"
 cat $JEDI_BUNDLE_DIR/CMakeLists.txt
 echo "-------------------------------------"
-
 
 #
 # Build and run unit tests.
 #
 cd "${BUILD_DIR}"
-
-# Fetch any pre-built artifacts from the build cache.
-#$WORKDIR/CI/src/test_runner/binary_cache.py fetch \
-#    --build-info-json $BUILD_JSON \
-#    --test-manifest $WORKDIR/CI/test_manifest.json \
-#    --cache-bucket jcsda-usaf-ci-build-cache \
-#    --container-version ${CONTAINER_VERSION:-latest} \
-#    --compiler $JEDI_COMPILER \
-#    --platform "$(uname)-$(uname -p)-batch" \
-#    --build-directory $BUILD_DIR \
-#    --refresh-cache $REFRESH_CACHE_ON_FETCH \
-#    --whitelist $UNIT_DEPENDENCIES $TRIGGER_REPO
 
 ecbuild \
       -Wno-dev \
@@ -298,17 +283,6 @@ if [ $? -ne 0 ]; then
     exit 0
 fi
 
-# Fetch any pre-built artifacts from the build cache.
-#$WORKDIR/CI/src/test_runner/binary_cache.py fetch \
-#    --build-info-json $BUILD_JSON \
-#    --test-manifest $WORKDIR/CI/test_manifest.json \
-#    --cache-bucket jcsda-usaf-ci-build-cache \
-#    --container-version ${CONTAINER_VERSION:-latest} \
-#    --compiler $JEDI_COMPILER \
-#    --platform "$(uname)-$(uname -p)-batch" \
-#    --refresh-cache $REFRESH_CACHE_ON_FETCH \
-#    --build-directory $BUILD_DIR
-
 ecbuild \
       -Wno-dev \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -352,17 +326,6 @@ ls -al "${BUILD_DIR}/Testing/${TEST_TAG}/"
 
 # Complete integration tests and allow a failure rate up to 3%
 util.check_run_end $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID 3
-
-#echo "Pushing build artifacts to cache."
-#$WORKDIR/CI/src/test_runner/binary_cache.py write \
-#    --build-info-json $BUILD_JSON \
-#    --cache-bucket jcsda-usaf-ci-build-cache \
-#    --container-version ${CONTAINER_VERSION:-latest} \
-#    --compiler $JEDI_COMPILER \
-#    --platform "$(uname)-$(uname -p)-batch" \
-#    --build-directory $BUILD_DIR \
-#    --refresh-cache $REFRESH_CACHE_ON_WRITE \
-#    --test-manifest $WORKDIR/CI/test_manifest.json
 
 # Upload codecov data if gcc compiler is used.
 if [ "$JEDI_COMPILER" = "gcc" ] && [ -f "${JEDI_BUNDLE_DIR}/${TRIGGER_REPO}/.codecov.yml" ]; then
