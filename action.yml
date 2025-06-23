@@ -1,5 +1,5 @@
 name: 'CI Job Launcher'
-description: 'GitHub Action to replace the Lambda actuator and CI test startup script for initiating CI jobs'
+description: 'Launch a JEDI-CI job'
 author: 'JCSDA'
 
 inputs:
