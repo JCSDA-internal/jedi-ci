@@ -10,9 +10,6 @@ import sys
 import json
 import subprocess
 import logging
-import yaml
-from github import Github, GithubIntegration
-from datetime import datetime
 import pathlib
 import pprint
 from ci_action import implementation as ci_implementation
@@ -42,12 +39,14 @@ logging.basicConfig(
 )
 LOG = logging.getLogger("entrypoint")
 
+
 def check_output(args, **kwargs):
     """
     Wrapper around subprocess.check_output that logs the command and its output.
     """
     LOG.info(f"Running command: {' '.join(args)}")
     return subprocess.check_output(args, **kwargs)
+
 
 def setup_git_credentials(github_token):
     """

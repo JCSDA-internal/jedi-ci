@@ -61,7 +61,7 @@ def get_ci_config(target_repo_path):
     # get the CI config yaml from the target repository
     ci_config_path = os.path.join(target_repo_path, 'jedi-ci.yaml')
     if not os.path.exists(ci_config_path):
-        raise EnvironmentError(f"jedi-ci.yaml not found in {target_repo_path}")
+        raise FileNotFoundError(f"jedi-ci.yaml not found in {target_repo_path}")
     # Open and parse the CI config yaml
     with open(ci_config_path, 'r') as f:
         ci_config = yaml.safe_load(f)
@@ -116,9 +116,8 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
     LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
 
     repo_to_commit_hash = pr_resolve.gather_build_group_hashes(test_annotations.build_group_map)
-    print('printing repo_to_commit_hash')
     repo_to_commit_hash_pretty = pprint.pformat(repo_to_commit_hash)
-    LOG.info(f'{timer.checkpoint()}\n{repo_to_commit_hash_pretty}')
+    LOG.info(f'{timer.checkpoint()}\nrepo_to_commit_hash:\n{repo_to_commit_hash_pretty}')
 
     # Import the bundle file
     bundle_file = os.path.join(bundle_repo_path, 'CMakeLists.txt')
