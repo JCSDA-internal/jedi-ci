@@ -1,0 +1,33 @@
+name: 'CI Job Launcher'
+description: 'Launch a JEDI-CI job'
+author: 'JCSDA'
+
+inputs:
+  container_version:
+    description: 'Container version (latest, next)'
+    required: true
+    default: 'latest'
+  jedi_bundle_branch:
+    description: 'JEDI bundle branch'
+    required: false
+    default: 'develop'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    GITHUB_TOKEN: ${{ inputs.github_token }}
+    TRIGGER_REPO: ${{ inputs.repository }}
+    TRIGGER_SHA: ${{ inputs.commit_sha }}
+    TRIGGER_PR: ${{ inputs.pr_number }}
+    TRIGGER_MANIFEST_NAME: ${{ inputs.manifest_name }}
+    UNITTEST_TAG: ${{ inputs.test_tag }}
+    JEDI_COMPILER: ${{ inputs.compiler }}
+    CONTAINER_VERSION: ${{ inputs.container_version }}
+    SKIP_CACHE: ${{ inputs.skip_cache }}
+    REBUILD_CACHE: ${{ inputs.rebuild_cache }}
+    JEDI_BUNDLE_BRANCH: ${{ inputs.jedi_bundle_branch }}
+
+branding:
+  icon: 'play'
+  color: 'blue' 

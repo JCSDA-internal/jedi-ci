@@ -6,6 +6,7 @@
 
 export CDASH_URL="https://cdash.jcsda.org"
 export SKIP_GITHUB_CHECK_RUNS='no'
+export CI_SCRIPTS_DIR=/workdir/bundle/jedi_ci_resources
 
 # ecbuild expects this to be set; various build templates are stored here.
 export jedi_cmake_ROOT=/opt/view
@@ -33,13 +34,13 @@ fi
 if [ ! -d "${WORKDIR}" ]; then
     mkdir -p "${WORKDIR}"
 fi
-mkdir "${WORKDIR}/test_root"
-mkdir "${WORKDIR}/test_root/build"
-mkdir "${WORKDIR}/test_root/build/module"
-export BUILD_DIR="${WORKDIR}/test_root/build"
-export TEST_ROOT="${WORKDIR}/test_root"
-export JEDI_BUNDLE_DIR="${WORKDIR}/test_root/jedi-bundle"
-export CI_CODE_PATH=$WORKDIR/CI
+mkdir "${WORKDIR}"
+mkdir "${WORKDIR}/build"
+mkdir "${WORKDIR}/build/module"
+export BUILD_DIR="${WORKDIR}/build"
+export TEST_ROOT="${WORKDIR}"
+export JEDI_BUNDLE_DIR="${WORKDIR}/bundle"
+export CI_SCRIPTS_DIR=$WORKDIR/bundle/jedi_ci_resources
 export BUILD_PARALLELISM=5
 
 

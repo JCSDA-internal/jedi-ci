@@ -22,8 +22,8 @@
 #
 
 # Load common function definitions.
-source $WORKDIR/CI/src/test_runner/util.sh
-source $WORKDIR/CI/src/test_runner/environment.sh
+source $WORKDIR/bundle/jedi_ci_resources/environment.sh
+source $WORKDIR/bundle/jedi_ci_resources/util.sh
 
 # Return code for any line of shell code containing a pipe or redirect will
 # come from the inner-most executable command.
@@ -44,10 +44,6 @@ if [ -z $GITHUB_INSTALL_ID ]; then
     echo "Var GITHUB_INSTALL_ID must be set and must contain the GitHub App install ID used for API access with target repositories."
     valid_environment_found="no"
 fi
-if [ -z $BUILD_INFO_B64 ]; then
-    echo "Var BUILD_INFO_B64 must be set; it should be a base64 encoded gzipped json string with build configuration and dependency versions."
-    valid_environment_found="no"
-fi
 if [ -z "${JEDI_COMPILER}" ]; then
     echo "Var JEDI_COMPILER must be set. This variable must be the name of the build environment toolchain."
     valid_environment_found="no"
@@ -60,6 +56,11 @@ fi
 if [ -z "${ECS_CONTAINER_METADATA_URI_V4}" ]; then
     # This variable is set by AWS Batch.
     echo "Var ECS_CONTAINER_METADATA_URI_V4 must be set."
+    valid_environment_found="no"
+fi
+if [ -z "${TRIGGER_REPO_FULL}" ]; then
+    # This variable is set by AWS Batch.
+    echo "Var TRIGGER_REPO_FULL must be set."
     valid_environment_found="no"
 fi
 
@@ -81,7 +82,7 @@ jedi_cmake_ROOT=${jedi_cmake_ROOT}
 OMPI_ALLOW_RUN_AS_ROOT=${OMPI_ALLOW_RUN_AS_ROOT}
 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=${OMPI_ALLOW_RUN_AS_ROOT_CONFIRM}
 OMPI_MCA_rmaps_base_oversubscribe=${OMPI_MCA_rmaps_base_oversubscribe}
-CI_CODE_PATH=${CI_CODE_PATH}
+CI_SCRIPTS_DIR=${CI_SCRIPTS_DIR}
 CC="${CC}"
 CXX="${CXX}"
 EOF
@@ -107,22 +108,12 @@ set -x
 # Setup and run tests.
 #
 
-# The lambda function has generated a json job config and passed it to this test
-# script as "BUILD_INFO_B64" after zipping and base64 encoding it. This step
-# decodes the job config json, and extracts several important config values.
-BUILD_JSON=$(mktemp)
-echo $BUILD_INFO_B64 | base64 --decode | gunzip > $BUILD_JSON
-TRIGGER_REPO=$(jq -r '.trigger_repo' $BUILD_JSON)
-TRIGGER_MANIFEST_NAME=$(jq -r '.manifest_name' $BUILD_JSON)
-UNITTEST_TAG=$(jq -r '.test_tag' $BUILD_JSON)
-TRIGGER_SHA=$(jq -r '.trigger_commit_sha' $BUILD_JSON)
-TRIGGER_PR=$(jq -r '.trigger_pr_number' $BUILD_JSON)
-TRIGGER_REPO_FULL="JCSDA-internal/${TRIGGER_REPO}"
-INTEGRATION_RUN_ID="$(jq -r ".check_runs.integration" $BUILD_JSON)"
-UNIT_RUN_ID="$(jq -r ".check_runs.unit" $BUILD_JSON)"
-REFRESH_CACHE_ON_FETCH="$(jq -r ".skip_cache" $BUILD_JSON)"
-REFRESH_CACHE_ON_WRITE="$(jq -r ".rebuild_cache" $BUILD_JSON)"
-JEDI_BUNDLE_BRANCH="$(jq -r ".jedi_bundle_branch" $BUILD_JSON)"
+#REFRESH_CACHE_ON_FETCH="$(jq -r ".skip_cache" $BUILD_JSON)"
+#REFRESH_CACHE_ON_WRITE="$(jq -r ".rebuild_cache" $BUILD_JSON)"
+#JEDI_BUNDLE_BRANCH="$(jq -r ".jedi_bundle_branch" $BUILD_JSON)"
+
+# Extract just the repo name from the full repository path
+TRIGGER_REPO=$(echo "$TRIGGER_REPO_FULL" | cut -d'/' -f2)
 
 
 # Generate the version ref flag value used later for build config. Ignore
@@ -140,13 +131,6 @@ fi
 # Update check-runs to include the batch job URL is included.
 util.check_run_runner_allocated $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID
 util.check_run_start_build $TRIGGER_REPO_FULL $UNIT_RUN_ID
-
-if [ -n "${JEDI_BUNDLE_BRANCH}" ]; then
-    git clone https://github.com/JCSDA-internal/jedi-bundle.git -b "${JEDI_BUNDLE_BRANCH}" "${JEDI_BUNDLE_DIR}"
-else
-    git clone https://github.com/JCSDA-internal/jedi-bundle.git "${JEDI_BUNDLE_DIR}"
-fi
-
 
 # Get all GitLFS repositories from s3.
 pushd ${JEDI_BUNDLE_DIR}
@@ -169,22 +153,22 @@ popd
 
 # Configure cdash integration.
 mkdir "${JEDI_BUNDLE_DIR}/cmake"
-cp "${WORKDIR}/CI/src/configure_bundle/ctest_assets/CTestConfig.cmake"       "${JEDI_BUNDLE_DIR}/"
-cp "${WORKDIR}/CI/src/configure_bundle/ctest_assets/CTestCustom.ctest.in"    "${JEDI_BUNDLE_DIR}/cmake/"
-cp "${WORKDIR}/CI/src/configure_bundle/ctest_assets/cdash-integration.cmake" "${JEDI_BUNDLE_DIR}/cmake/"
+cp "${SCRIPT_DIR}/ctest_assets/CTestConfig.cmake"       "${JEDI_BUNDLE_DIR}/"
+cp "${SCRIPT_DIR}/ctest_assets/CTestCustom.ctest.in"    "${JEDI_BUNDLE_DIR}/cmake/"
+cp "${SCRIPT_DIR}/ctest_assets/cdash-integration.cmake" "${JEDI_BUNDLE_DIR}/cmake/"
+sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#TEST_TARGET_NAME#${TRIGGER_REPO}#g" "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
-echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
-echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
-echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
-echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
+# Update the integration test CMakeLists.txt file to include cdash integration.
+echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
 
-$WORKDIR/CI/src/configure_bundle/configure_bundle.py \
-  --unit-test \
-  --test-target $TRIGGER_MANIFEST_NAME \
-  --unit-test-dependency $UNIT_DEPENDENCIES \
-  --dependency-version $VERSION_MAP \
-  --bundle-root="${JEDI_BUNDLE_DIR}" 2>&1 | tee configure_1.log
+# Switch to the unittest and integration CMakeLists.txt files.
+cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
+cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
+
 
 if [ $? -ne 0 ]; then
     if grep -qi "remote: Invalid username or password." configure_1.log; then
@@ -211,28 +195,14 @@ if  grep -q -e "ropp-ufo" <<< $UNIT_DEPENDENCIES; then
     COMPILER_FLAGS+=( -DBUILD_ROPP=ON )
 fi
 
-
 echo "---- JEDI Bundle CMakeLists.txt -----"
 cat $JEDI_BUNDLE_DIR/CMakeLists.txt
 echo "-------------------------------------"
-
 
 #
 # Build and run unit tests.
 #
 cd "${BUILD_DIR}"
-
-# Fetch any pre-built artifacts from the build cache.
-$WORKDIR/CI/src/test_runner/binary_cache.py fetch \
-    --build-info-json $BUILD_JSON \
-    --test-manifest $WORKDIR/CI/test_manifest.json \
-    --cache-bucket jcsda-usaf-ci-build-cache \
-    --container-version ${CONTAINER_VERSION:-latest} \
-    --compiler $JEDI_COMPILER \
-    --platform "$(uname)-$(uname -p)-batch" \
-    --build-directory $BUILD_DIR \
-    --refresh-cache $REFRESH_CACHE_ON_FETCH \
-    --whitelist $UNIT_DEPENDENCIES $TRIGGER_REPO
 
 ecbuild \
       -Wno-dev \
@@ -307,28 +277,11 @@ TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
 # Start the integration test run.
 util.check_run_start_build $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID
 
-$WORKDIR/CI/src/configure_bundle/configure_bundle.py \
-  --integration-test \
-  --test-target $TRIGGER_MANIFEST_NAME \
-  --dependency-version $VERSION_MAP \
-  --bundle-root="${JEDI_BUNDLE_DIR}"
-
 if [ $? -ne 0 ]; then
     util.check_run_fail $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID "Bundle configuration failed"
     util.evaluate_debug_timer_then_cleanup
     exit 0
 fi
-
-# Fetch any pre-built artifacts from the build cache.
-$WORKDIR/CI/src/test_runner/binary_cache.py fetch \
-    --build-info-json $BUILD_JSON \
-    --test-manifest $WORKDIR/CI/test_manifest.json \
-    --cache-bucket jcsda-usaf-ci-build-cache \
-    --container-version ${CONTAINER_VERSION:-latest} \
-    --compiler $JEDI_COMPILER \
-    --platform "$(uname)-$(uname -p)-batch" \
-    --refresh-cache $REFRESH_CACHE_ON_FETCH \
-    --build-directory $BUILD_DIR
 
 ecbuild \
       -Wno-dev \
@@ -373,17 +326,6 @@ ls -al "${BUILD_DIR}/Testing/${TEST_TAG}/"
 
 # Complete integration tests and allow a failure rate up to 3%
 util.check_run_end $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID 3
-
-#echo "Pushing build artifacts to cache."
-$WORKDIR/CI/src/test_runner/binary_cache.py write \
-    --build-info-json $BUILD_JSON \
-    --cache-bucket jcsda-usaf-ci-build-cache \
-    --container-version ${CONTAINER_VERSION:-latest} \
-    --compiler $JEDI_COMPILER \
-    --platform "$(uname)-$(uname -p)-batch" \
-    --build-directory $BUILD_DIR \
-    --refresh-cache $REFRESH_CACHE_ON_WRITE \
-    --test-manifest $WORKDIR/CI/test_manifest.json
 
 # Upload codecov data if gcc compiler is used.
 if [ "$JEDI_COMPILER" = "gcc" ] && [ -f "${JEDI_BUNDLE_DIR}/${TRIGGER_REPO}/.codecov.yml" ]; then

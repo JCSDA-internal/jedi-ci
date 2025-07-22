@@ -64,7 +64,7 @@ util.check_run_new() {
     repo=$1
     test_type=$2
     commit_sha=$3
-    $CI_CODE_PATH/src/test_runner/github_api/check_run.py new \
+    ${CI_SCRIPTS_DIR}/github_api/check_run.py new \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
         --repo=$repo \
@@ -89,7 +89,7 @@ util.check_run_runner_allocated() {
     # Note: when the test is updated to indicate a runner is allocated we do
     # not include the public log link since it is not available until after all
     # tests on a build host are complete.
-    $CI_CODE_PATH/src/test_runner/github_api/check_run.py update \
+    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
         --repo=$repo \
@@ -111,7 +111,7 @@ util.check_run_fail() {
     repo=$1
     run_id=$2
     fail_reason=$3
-    $CI_CODE_PATH/src/test_runner/github_api/check_run.py update \
+    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
         --repo=$repo \
@@ -137,7 +137,7 @@ util.check_run_skip() {
     fi
     repo=$1
     run_id=$2
-    $CI_CODE_PATH/src/test_runner/github_api/check_run.py update \
+    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
         --repo=$repo \
@@ -162,7 +162,7 @@ util.check_run_successful_skip() {
     fi
     repo=$1
     run_id=$2
-    $CI_CODE_PATH/src/test_runner/github_api/check_run.py update \
+    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
         --repo=$repo \
@@ -187,7 +187,7 @@ util.check_run_start_build() {
     repo=$1
     run_id=$2
     # As with runner_allocated we don't include the public log link.
-    $CI_CODE_PATH/src/test_runner/github_api/check_run.py update \
+    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
         --repo=$repo \
@@ -210,7 +210,7 @@ util.check_run_start_test() {
     repo=$1
     run_id=$2
     # As with runner_allocated we don't include the public log link.
-    $CI_CODE_PATH/src/test_runner/github_api/check_run.py update \
+    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
         --repo="${repo}" \
@@ -238,7 +238,7 @@ util.check_run_end() {
     max_fail_ppc=$3
     cdash_url=$(util.create_cdash_url "${BUILD_DIR}/Testing")
     test_xml=$(util.find_test_xml)
-    $CI_CODE_PATH/src/test_runner/github_api/check_run.py end \
+    ${CI_SCRIPTS_DIR}/github_api/check_run.py end \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
         --repo="${repo}" \
@@ -263,7 +263,7 @@ util.check_run_eval_test_xml() {
         return 0
     fi
     test_xml=$(util.find_test_xml)
-    if $CI_CODE_PATH/src/test_runner/github_api/check_run.py eval_test_xml \
+    if ${CI_SCRIPTS_DIR}/github_api/check_run.py eval_test_xml \
             --test-xml="${test_xml}" \
             --max-failure-percentage $max_fail_ppc
     then

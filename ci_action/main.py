@@ -1,10 +1,36 @@
 #!/usr/bin/env python3
+"""
+This is the entrypoint for the JEDI CI action, it is responsible for
+verifying and fetching the environment and for invoking the main
+implementation of the CI action.
+"""
 
+import os
 import sys
+import json
 import subprocess
 import logging
 import pathlib
+import pprint
+from ci_action import implementation as ci_implementation
 import argparse
+
+
+# This configuration is used to store references to AWS resources
+# specific to our cloud formation stack.
+JEDI_CI_INFRA_CONFIG = {
+    # ARN of the AWS Batch job queue.
+    'batch_queue': 'arn:aws:batch:us-east-2:747101682576:job-queue/JobQueue-wnYIFmaQpfwKNZuw',
+    # Map of build environment name to job definition name.
+    'batch_job_name_map': {
+        'gcc11': 'jedi-ci-action-gcc11',
+        'gcc11-next': 'jedi-ci-action-gcc11',
+        'gcc': 'jedi-ci-action-gcc',
+        'gcc-next': 'jedi-ci-action-gcc-next',
+        'intel': 'jedi-ci-action-intel',
+        'intel-next': 'jedi-ci-action-intel-next',
+    }
+}
 
 # Configure logging
 logging.basicConfig(
@@ -13,12 +39,14 @@ logging.basicConfig(
 )
 LOG = logging.getLogger("entrypoint")
 
+
 def check_output(args, **kwargs):
     """
     Wrapper around subprocess.check_output that logs the command and its output.
     """
     LOG.info(f"Running command: {' '.join(args)}")
     return subprocess.check_output(args, **kwargs)
+
 
 def setup_git_credentials(github_token):
     """
@@ -44,6 +72,43 @@ def setup_git_credentials(github_token):
         LOG.info("GITHUB_TOKEN is not set. Git operations may require authentication.")
 
 
+def get_environment_config():
+    """Pull config data from GitHub action environment.
+
+    The github action environment is set by the GitHub action runner
+    and includes pull request and push event data in a json file
+    that is read here. The action also contains environment variables
+    set by the runner configuration yaml.
+    """
+    repository = os.environ.get('GITHUB_REPOSITORY')
+    owner, repo_name = repository.split('/')
+    github_event_path = os.environ.get('GITHUB_EVENT_PATH')
+    with open(github_event_path, 'r') as f:
+        event = json.load(f)
+
+    if event.get('pull_request'):
+        branch_name = event['pull_request']['head']['ref']
+        pull_request_number = event['pull_request'].get('number', -1)
+        pr_payload = event['pull_request']
+        trigger_commit = event['pull_request'].get('head', {}).get('sha', '')
+    else:
+        raise ValueError(f'No pull request found in event; {event}')
+
+    config = {
+        'repository': repository,
+        'owner': owner,
+        'repo_name': repo_name,
+        'clone_url': f'https://github.com/{repository}.git',
+        'github_event_path': github_event_path,
+        'branch_name': branch_name,
+        'pull_request_number': pull_request_number,
+        'pr_payload': pr_payload,
+        'trigger_commit': trigger_commit,
+        'trigger_commit_short': trigger_commit[:7],
+    }
+    return config
+
+
 def main():
     """This function is the entrypoint for the CI action, it gets all configuration
     information and then calls the prepare_and_launch_ci_test function.
@@ -60,6 +125,38 @@ def main():
     if args.noop:
         LOG.info("No-op flag set, exiting successfully")
         return 0
+
+    if args.environment_query:
+        for key, value in os.environ.items():
+            LOG.info(f"{key}: {value}")
+        current_dir = os.getcwd()
+        LOG.info(f"Current directory: {current_dir}")
+        return 0
+
+    workspace_dir = os.environ.get('GITHUB_WORKSPACE', os.getcwd())
+    target_repo_full_path = os.path.join(
+        workspace_dir, os.environ['TARGET_REPO_DIR'])
+
+    # Get the CI config from the target repository which must have
+    # been cloned into the github workspace directory.
+    ci_config = ci_implementation.get_ci_config(target_repo_full_path)
+    LOG.info(f"ci config:")
+    pretty_config = pprint.pformat(ci_config)
+    LOG.info(pretty_config)
+
+    # Get environment attributes set by GitHub.
+    env_config = get_environment_config()
+
+    # Setup Git credentials before doing anything else
+    setup_git_credentials(os.environ.get('JEDI_CI_TOKEN'))
+
+    # Prepare and launch the CI test
+    ci_implementation.prepare_and_launch_ci_test(
+        infra_config=JEDI_CI_INFRA_CONFIG,
+        environment_config=env_config,
+        ci_config=ci_config,
+        bundle_repo_path=os.path.join(workspace_dir, 'bundle'),
+        target_repo_path=target_repo_full_path)
 
     return 0
 

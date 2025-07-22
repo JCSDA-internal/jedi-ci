@@ -23,30 +23,25 @@ class BatchSubmitConfig(object):
         self.build_environment = build_environment
 
 
-class BatchSubmitConfigFromEnv(object):
+class BatchSubmitConfigBuilder(object):
     """Collect batch job config values from the environment.
 
     This class is configured using the following environment variables. If any
     are unset, the class cannot be instantiated.
-
-    Environment configuration:
-        BATCH_JOB_DEFINITION_CLANG: the ARN of the "clang" test batch job def.
-        BATCH_JOB_DEFINITION_GNU: the ARN of the "gcc" test batch job def.
-        BATCH_JOB_DEFINITION_INTEL: the ARN of the "intel" test batch job def.
-        BATCH_JOB_QUEUE: the ARN of the Batch job queue used for testing jobs.
     """
 
-    def __init__(self, timeout):
+    def __init__(self, job_name_map, job_queue, timeout):
         """Init from environment."""
+
         self._job_def_map = {
-            'gcc11': os.environ.get('BATCH_JOB_DEFINITION_CLANG', ''),
-            'gcc': os.environ.get('BATCH_JOB_DEFINITION_GNU', ''),
-            'intel': os.environ.get('BATCH_JOB_DEFINITION_INTEL', ''),
-            'gcc11-next': os.environ.get('BATCH_JOB_DEFINITION_CLANG_NEXT', ''),
-            'gcc-next': os.environ.get('BATCH_JOB_DEFINITION_GNU_NEXT', ''),
-            'intel-next': os.environ.get('BATCH_JOB_DEFINITION_INTEL_NEXT', ''),
+            'gcc11': self.get_latest_job_arn(job_name_map, 'gcc11'),
+            'gcc': self.get_latest_job_arn(job_name_map, 'gcc'),
+            'intel': self.get_latest_job_arn(job_name_map, 'intel'),
+            'gcc11-next': self.get_latest_job_arn(job_name_map, 'gcc11-next'),
+            'gcc-next': self.get_latest_job_arn(job_name_map, 'gcc-next'),
+            'intel-next': self.get_latest_job_arn(job_name_map, 'intel-next')
         }
-        self._job_queue = os.environ.get('BATCH_JOB_QUEUE', '')
+        self._job_queue = job_queue
         self._timeout = timeout
         # Validate job definition ARNs.
         for job_name, job_arn in self._job_def_map.items():
@@ -58,6 +53,18 @@ class BatchSubmitConfigFromEnv(object):
             raise EnvironmentError(
                 f'BATCH_JOB_QUEUE "{self._job_queue}" is not an AWS Batch '
                 'service arn. Value must start with "arn:aws:batch"')
+
+    def get_latest_job_arn(self, job_name_map, job_environment):
+        """Get the job arn for a given environment."""
+        client = get_batch_client()
+        batch_job_name = job_name_map[job_environment]
+        response = client.describe_job_definitions(
+            jobDefinitionName=batch_job_name,
+            status='ACTIVE',
+        )
+        # Get the most recent active job.
+        job_definitions = sorted(response['jobDefinitions'], key=lambda x: x['revision'], reverse=True)
+        return job_definitions[0]['jobDefinitionArn']
 
     def get_config(self, build_environment):
         """Get a BatchSubmitConfig for a named environment."""
@@ -74,14 +81,19 @@ class BatchSubmitConfigFromEnv(object):
 def submit_test_batch_job(
         config: BatchSubmitConfig,
         repo_name: str,
+        repo_name_full: str,
         commit: str,
         pr: int,
-        test_script: str,
+        configured_bundle_tarball: str,
+        debug_time_seconds: int,
         build_identity: str,
-        debug_time: int,
-        build_info: str,
+        unittest_tag: str,
+        trigger_sha: str,
+        trigger_pr: str,
+        integration_run_id: str,
+        unit_run_id: str,
     ):
-    """Submit a CI batch job."""
+    """Submit a CI batch job with updated environment variables."""
     job_name = f'jedi-ci-{repo_name}-{pr}-{commit}-{config.build_environment}'
     return get_batch_client().submit_job(
         jobName=job_name,
@@ -97,21 +109,41 @@ def submit_test_batch_job(
                     'value': repo_name,
                 },
                 {
+                    'name': 'TRIGGER_REPO_FULL',
+                    'value': repo_name_full,
+                },
+                {
                     'name': 'BUILD_IDENTITY',
                     'value': build_identity
                 },
                 {
                     'name': 'DEBUG_TIME_SECONDS',
-                    'value': f'{debug_time}',
+                    'value': f'{debug_time_seconds}',
                 },
                 {
-                    'name': 'BUILD_INFO_B64',
-                    'value': build_info,
+                    'name': 'CONFIGURED_BUNDLE_TARBALL_S3',
+                    'value': configured_bundle_tarball,
                 },
                 {
-                    'name': 'TEST_SCRIPT',
-                    'value': test_script,
-                }
+                    'name': 'UNITTEST_TAG',
+                    'value': unittest_tag,
+                },
+                {
+                    'name': 'TRIGGER_SHA',
+                    'value': trigger_sha,
+                },
+                {
+                    'name': 'TRIGGER_PR',
+                    'value': str(trigger_pr),
+                },
+                {
+                    'name': 'INTEGRATION_RUN_ID',
+                    'value': str(integration_run_id),
+                },
+                {
+                    'name': 'UNIT_RUN_ID',
+                    'value': str(unit_run_id),
+                },
             ],
         },
     )
