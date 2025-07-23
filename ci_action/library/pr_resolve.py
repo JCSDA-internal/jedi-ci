@@ -40,8 +40,7 @@ CI_TEST_SELECT_RE = re.compile(
 JEDI_BUNDLE_BRANCH_RE = re.compile(
     r'^jedi-ci-bundle-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)
 MANIFEST_BRANCH_RE = re.compile(
-    r'^jedi-ci-manifest-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)
-
+    r'^jedi-ci-manifest-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)  # noqa: E501
 
 
 class TestAnnotations(NamedTuple):
@@ -194,7 +193,6 @@ def read_test_annotations(
         manifest_branch = manifest_branch_config[0]
         skip_cache = 'true'  # Do not read from the cache.
         rebuild_cache = 'false'  # Do not save build results to the cache.
-
 
     return TestAnnotations(
         build_group_map=build_group_pr_map,

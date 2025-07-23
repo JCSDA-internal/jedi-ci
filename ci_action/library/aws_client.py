@@ -7,6 +7,7 @@ import os
 import time
 import functools
 
+
 @functools.lru_cache(maxsize=1)
 def get_batch_client():
     """Lazily initialize and cache the GitHub client manager from environment."""
@@ -63,7 +64,8 @@ class BatchSubmitConfigBuilder(object):
             status='ACTIVE',
         )
         # Get the most recent active job.
-        job_definitions = sorted(response['jobDefinitions'], key=lambda x: x['revision'], reverse=True)
+        job_definitions = sorted(response['jobDefinitions'],
+                                 key=lambda x: x['revision'], reverse=True)
         return job_definitions[0]['jobDefinitionArn']
 
     def get_config(self, build_environment):
@@ -92,7 +94,7 @@ def submit_test_batch_job(
         trigger_pr: str,
         integration_run_id: str,
         unit_run_id: str,
-    ):
+):
     """Submit a CI batch job with updated environment variables."""
     job_name = f'jedi-ci-{repo_name}-{pr}-{commit}-{config.build_environment}'
     return get_batch_client().submit_job(

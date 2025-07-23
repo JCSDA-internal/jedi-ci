@@ -67,7 +67,10 @@ def get_ci_config(target_repo_path):
         ci_config = yaml.safe_load(f)
 
     # Validate required fields.
-    required_fields = ['bundle_repository', 'bundle_branch', 'test_script', 'name', 'test_tag', 'bundle_name']
+    required_fields = [
+        'bundle_repository', 'bundle_branch', 'test_script',
+        'name', 'test_tag', 'bundle_name'
+    ]
     for field in required_fields:
         if field not in ci_config:
             raise ValueError(f"Required field {field} not found in {ci_config_path}")
@@ -82,9 +85,15 @@ def get_ci_config(target_repo_path):
     return ci_config
 
 
-def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bundle_repo_path, target_repo_path):
+def prepare_and_launch_ci_test(
+    infra_config,
+    environment_config,
+    ci_config,
+    bundle_repo_path,
+    target_repo_path,
+):
     """The main function that will be called to prepare and launch the CI test.
-    
+
     This is similar to the process_event function, which was used by the lambda
     CI actuator but has been adapted for the Github-based Action CI.
 
@@ -102,7 +111,10 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
     timer = TimeCheckpointer()
     if not os.path.exists(bundle_repo_path):
         LOG.info(f"Cloning bundle repository into {bundle_repo_path}")
-        check_output(['git', 'clone', '--branch', ci_config['bundle_branch'], ci_config['bundle_repository'], bundle_repo_path])
+        check_output([
+            'git', 'clone', '--branch', ci_config['bundle_branch'],
+            ci_config['bundle_repository'], bundle_repo_path
+        ])
 
     # Fetch config from the pull request data
     test_annotations = pr_resolve.read_test_annotations(
@@ -115,15 +127,23 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
     annotations_pretty = pprint.pformat(test_annotations)
     LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
 
-    repo_to_commit_hash = pr_resolve.gather_build_group_hashes(test_annotations.build_group_map)
+    repo_to_commit_hash = pr_resolve.gather_build_group_hashes(
+        test_annotations.build_group_map
+    )
     repo_to_commit_hash_pretty = pprint.pformat(repo_to_commit_hash)
-    LOG.info(f'{timer.checkpoint()}\nrepo_to_commit_hash:\n{repo_to_commit_hash_pretty}')
+    LOG.info(
+        f'{timer.checkpoint()}\nrepo_to_commit_hash:\n{repo_to_commit_hash_pretty}'
+    )
 
     # Import the bundle file
     bundle_file = os.path.join(bundle_repo_path, 'CMakeLists.txt')
     bundle_file_unittest = bundle_file
-    bundle_original = os.path.join(bundle_repo_path, 'CMakeLists.txt.original')
-    bundle_integration = os.path.join(bundle_repo_path, 'CMakeLists.txt.integration')
+    bundle_original = os.path.join(
+        bundle_repo_path, 'CMakeLists.txt.original'
+    )
+    bundle_integration = os.path.join(
+        bundle_repo_path, 'CMakeLists.txt.integration'
+    )
     with open(bundle_file, 'r') as f:
         bundle = cmake_rewrite.CMakeFile(f.read())
 
@@ -149,18 +169,29 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
     LOG.info(f'{timer.checkpoint()}\n Rewrote bundle for build groups.')
 
     # Add resources to the bundle by copying all files in /app/shell to jedi_ci_resources
-    shutil.copytree('/app/shell', os.path.join(bundle_repo_path, 'jedi_ci_resources'))
+    shutil.copytree(
+        '/app/shell', os.path.join(bundle_repo_path, 'jedi_ci_resources')
+    )
 
     # Create a tarball  the new bundle (with test resources).
     LOG.info(f"Creating bundle.tar.gz from {bundle_repo_path}")
     bundle_tarball = "bundle.tar.gz"
-    check_output(['tar', '-czf', bundle_tarball, '-C', os.path.dirname(bundle_repo_path), os.path.basename(bundle_repo_path)])
+    check_output([
+        'tar', '-czf', bundle_tarball, '-C', os.path.dirname(bundle_repo_path),
+        os.path.basename(bundle_repo_path)
+    ])
     LOG.info(f"{timer.checkpoint()}\nCreated bundle tarball at {bundle_tarball}")
 
     # Upload the bundle to S3.
-    s3_file = f'ci_action_bundles/{environment_config["repository"]}/{environment_config["pull_request_number"]}-{environment_config["trigger_commit"]}-{ci_config["bundle_name"]}.tar.gz'
+    s3_file = (
+        f'ci_action_bundles/{environment_config["repository"]}/'
+        f'{environment_config["pull_request_number"]}-'
+        f'{environment_config["trigger_commit"]}-{ci_config["bundle_name"]}.tar.gz'
+    )
     s3_client = boto3.client('s3')
-    configured_bundle_tarball_s3_path = upload_to_aws(BUILD_CACHE_BUCKET, s3_client, bundle_tarball, s3_file)
+    configured_bundle_tarball_s3_path = upload_to_aws(
+        BUILD_CACHE_BUCKET, s3_client, bundle_tarball, s3_file
+    )
 
     # Launch the test
     test_select = test_annotations.test_select
@@ -185,7 +216,8 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
     batch_config_builder = aws_client.BatchSubmitConfigBuilder(
         job_name_map=infra_config['batch_job_name_map'],
         job_queue=infra_config['batch_queue'],
-        timeout=60*240)
+        timeout=60*240
+    )
 
     # write the test github check runs to the PR.
     for build_environment in chosen_build_environments:
@@ -199,11 +231,19 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
 
         # Note checkrun_id_map is dict {'unit': unit_run.id, 'integration': integration_run.id}
         debug_time = 60*30 if test_annotations.debug_mode else 0
-        build_identity = f'{environment_config["repo_name"]}-{environment_config["pull_request_number"]}-{environment_config["trigger_commit_short"]}-{build_environment}'
-        repo_name_full = f'{environment_config["owner"]}/{environment_config["repo_name"]}'
+        build_identity = (
+            f'{environment_config["repo_name"]}-'
+            f'{environment_config["pull_request_number"]}-'
+            f'{environment_config["trigger_commit_short"]}-{build_environment}'
+        )
+        repo_name_full = (
+            f'{environment_config["owner"]}/{environment_config["repo_name"]}'
+        )
 
         job = aws_client.submit_test_batch_job(
-            config=batch_config_builder.get_config(build_environment + test_annotations.next_ci_suffix),
+            config=batch_config_builder.get_config(
+                build_environment + test_annotations.next_ci_suffix
+            ),
             repo_name=environment_config['repo_name'],
             repo_name_full=repo_name_full,
             commit=environment_config['trigger_commit_short'],
@@ -218,4 +258,7 @@ def prepare_and_launch_ci_test(infra_config, environment_config, ci_config, bund
             unit_run_id=checkrun_id_map['unit'],
         )
         job_arn = job['jobArn']
-        LOG.info(f'{timer.checkpoint()}\nSubmitted Batch Job for build environment {build_environment}: "{job_arn}".')
+        LOG.info(
+            f'{timer.checkpoint()}\nSubmitted Batch Job for build environment '
+            f'{build_environment}: "{job_arn}".'
+        )

@@ -23,7 +23,8 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "pytest>=6.0"
+    "pytest>=6.0",
+    "pycodestyle>=2.8.0"
 ]
 
 [tool.setuptools]
@@ -34,6 +35,9 @@ package-dir = {"" = "."}
 minversion = "6.0"
 addopts = "-ra -q"
 testpaths = ["test"]
+
+[tool.pycodestyle]
+max-line-length = 99
 
 [project.scripts]
 jedi_ci = "ci_action:main"

@@ -116,10 +116,10 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='JEDI CI Action')
     parser.add_argument('--noop', action='store_true', default=False,
-                       help='No-op mode - exit immediately if set')
+                        help='No-op mode - exit immediately if set')
     # DO NOT SUBMIT: this must default to False before submission.
     parser.add_argument('--environment_query', action='store_true', default=False,
-                       help='Similar to --noop, but will show the environment config')
+                        help='Similar to --noop, but will show the environment config')
     args = parser.parse_args()
 
     if args.noop:
@@ -160,5 +160,6 @@ def main():
 
     return 0
 
+
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())
