@@ -1,13 +1,8 @@
-import json
 import logging
-import os
 import re
-from typing import Any, Mapping, NamedTuple, Tuple, Union
-
-import github
+from typing import Any, Mapping, NamedTuple, Union
 
 from ci_action.library import github_client
-from ci_action.library import aws_client
 
 LOG = logging.getLogger("pr_resolve")
 
@@ -100,7 +95,7 @@ def read_test_annotations(
         next_ci_regex=NEXT_CI_RE,
         jedi_bundle_branch_regex=JEDI_BUNDLE_BRANCH_RE,
         manifest_branch_regex=MANIFEST_BRANCH_RE,
-        ) -> TestAnnotations:
+) -> TestAnnotations:
     """Reads all jedi-ci specific behavior annotations from a pull request.
 
     Returns a TestAnnotations named-tuple with all values set from the pull

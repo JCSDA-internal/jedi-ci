@@ -58,7 +58,7 @@ def setup_git_credentials(github_token):
         LOG.info("JEDI_CI_TOKEN is set. Setting up Git credentials.")
 
         # Configure git to use the credential store
-        result = check_output(
+        check_output(
             ["git", "config", "--global", "credential.helper", "store"],
         )
         # Write the ~/.git-credentials file
@@ -140,7 +140,7 @@ def main():
     # Get the CI config from the target repository which must have
     # been cloned into the github workspace directory.
     ci_config = ci_implementation.get_ci_config(target_repo_full_path)
-    LOG.info(f"ci config:")
+    LOG.info("ci config:")
     pretty_config = pprint.pformat(ci_config)
     LOG.info(pretty_config)
 

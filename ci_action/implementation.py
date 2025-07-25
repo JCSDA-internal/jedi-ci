@@ -123,7 +123,7 @@ def prepare_and_launch_ci_test(
         pr_payload=environment_config['pr_payload'],
         testmode=ci_config.get('test_mode', None) == 'SELF_TEST_JEDI_CI',
     )
-    LOG.info(f'test_annotations:')
+    LOG.info('test_annotations:')
     annotations_pretty = pprint.pformat(test_annotations)
     LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
 
@@ -216,7 +216,7 @@ def prepare_and_launch_ci_test(
     batch_config_builder = aws_client.BatchSubmitConfigBuilder(
         job_name_map=infra_config['batch_job_name_map'],
         job_queue=infra_config['batch_queue'],
-        timeout=60*240
+        timeout=60 * 240
     )
 
     # write the test github check runs to the PR.
@@ -230,7 +230,7 @@ def prepare_and_launch_ci_test(
         LOG.info(f'{timer.checkpoint()}\nCreated check runs for {build_environment}.')
 
         # Note checkrun_id_map is dict {'unit': unit_run.id, 'integration': integration_run.id}
-        debug_time = 60*30 if test_annotations.debug_mode else 0
+        debug_time = 60 * 30 if test_annotations.debug_mode else 0
         build_identity = (
             f'{environment_config["repo_name"]}-'
             f'{environment_config["pull_request_number"]}-'

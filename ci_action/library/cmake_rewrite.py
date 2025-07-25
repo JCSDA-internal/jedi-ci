@@ -190,7 +190,7 @@ class CMakeFile:
             enabled_bundles: Optional[Container[str]] = None,
             rewrite_rules: Optional[dict[str, str]] = None,
             build_group_commit_map: Optional[Dict[str, Dict[str, Any]]] = None,
-            ):
+    ):
         """Rewrite the CMakeFile object to the file_object.
 
         Args:

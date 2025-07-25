@@ -5,15 +5,11 @@ currently implemented it doesn't do too much but exists to support
 the implementation inhereted from the GitHub Lambda function which
 required a more complex app-integration client
 """
-import datetime
 import github
 import logging
 import os
-import random
-import time
 from functools import lru_cache
 
-from ci_action.library import aws_client
 
 LOG = logging.getLogger("github_client")
 
