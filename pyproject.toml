@@ -39,7 +39,6 @@ addopts = "-ra -q"
 testpaths = ["test"]
 
 [tool.flake8]
-ignore = ['E231', 'E241']
 max-line-length = 100
 count = true
 
