@@ -69,7 +69,7 @@ def get_ci_config(target_repo_path):
     # Validate required fields.
     required_fields = [
         'bundle_repository', 'bundle_branch', 'test_script',
-        'name', 'test_tag', 'bundle_name'
+        'name', 'test_tag', 'bundle_name', 'uri'
     ]
     for field in required_fields:
         if field not in ci_config:
@@ -118,7 +118,7 @@ def prepare_and_launch_ci_test(
 
     # Fetch config from the pull request data
     test_annotations = pr_resolve.read_test_annotations(
-        repo_uri=ci_config['bundle_repository'],
+        repo_uri=ci_config['uri'],
         pr_number=environment_config['pull_request_number'],
         pr_payload=environment_config['pr_payload'],
         testmode=ci_config.get('test_mode', None) == 'SELF_TEST_JEDI_CI',
