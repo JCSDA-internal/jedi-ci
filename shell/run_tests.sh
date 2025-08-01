@@ -85,6 +85,7 @@ OMPI_MCA_rmaps_base_oversubscribe=${OMPI_MCA_rmaps_base_oversubscribe}
 CI_SCRIPTS_DIR=${CI_SCRIPTS_DIR}
 CC="${CC}"
 CXX="${CXX}"
+UNIT_DEPENDENCIES=${UNIT_DEPENDENCIES}
 EOF
 
 
@@ -164,10 +165,11 @@ echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.
 echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
 echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
 echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
-
-# Switch to the unittest and integration CMakeLists.txt files.
-cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
-cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
+# Update the unittest CMakeLists.txt file to include cdash integration.
+echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
+echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
 
 
 if [ $? -ne 0 ]; then
@@ -195,9 +197,9 @@ if  grep -q -e "ropp-ufo" <<< $UNIT_DEPENDENCIES; then
     COMPILER_FLAGS+=( -DBUILD_ROPP=ON )
 fi
 
-echo "---- JEDI Bundle CMakeLists.txt -----"
+echo "---- JEDI Bundle CMakeLists.txt - unit tests -----"
 cat $JEDI_BUNDLE_DIR/CMakeLists.txt
-echo "-------------------------------------"
+echo "-------------------------------------------------------"
 
 #
 # Build and run unit tests.
@@ -266,10 +268,21 @@ if ! util.check_run_eval_test_xml $ALLOWED_UNIT_FAIL_RATE ; then
     exit 0
 fi
 
+
+
+
+
 #
 # Build and run integration tests. This section will not be run if we detect
 # a failure above (implemented)
 
+# Switch to the unittest and integration CMakeLists.txt files.
+mv ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
+cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
+
+echo "---- JEDI Bundle CMakeLists.txt - integration tests -----"
+cat $JEDI_BUNDLE_DIR/CMakeLists.txt
+echo "-------------------------------------------------------"
 
 # Delete test output to force re-generation of BuildID
 TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
