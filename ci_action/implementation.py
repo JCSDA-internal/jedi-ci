@@ -155,7 +155,7 @@ def prepare_and_launch_ci_test(
     with open(bundle_file_unittest, 'w') as f:
         bundle.rewrite_build_group_whitelist(
             file_object=f,
-            enabled_bundles=ci_config['unittest'],
+            enabled_bundles=set(ci_config.get('unittest', []) + [environment_config['repo_name']]),
             build_group_commit_map=repo_to_commit_hash,
         )
 
