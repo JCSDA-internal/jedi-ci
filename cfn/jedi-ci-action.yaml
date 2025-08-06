@@ -209,7 +209,9 @@ Resources:
               "Sid": "AllowSubmitToQueue",
               "Effect": "Allow",
               "Action": [
-                "batch:SubmitJob"
+                "batch:SubmitJob",
+                "batch:CancelJob",
+                "batch:ListJobs"
               ],
               "Resource": [
                 "${JobQueue}",
