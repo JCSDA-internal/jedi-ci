@@ -211,6 +211,8 @@ Resources:
               "Action": [
                 "batch:SubmitJob",
                 "batch:CancelJob",
+                "batch:DescribeJobs",
+                "batch:TerminateJob",
                 "batch:ListJobs"
               ],
               "Resource": [
