@@ -211,9 +211,7 @@ Resources:
               "Action": [
                 "batch:SubmitJob",
                 "batch:CancelJob",
-                "batch:DescribeJobs",
-                "batch:TerminateJob",
-                "batch:ListJobs"
+                "batch:TerminateJob"
               ],
               "Resource": [
                 "${JobQueue}",
@@ -222,7 +220,8 @@ Resources:
                 "${BuildIntelJobDefinition}",
                 "${BuildGcc11NextJobDefinition}",
                 "${BuildGccNextJobDefinition}",
-                "${BuildIntelNextJobDefinition}"
+                "${BuildIntelNextJobDefinition}",
+                "arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job/*"
               ]
             },
             {
