@@ -591,7 +591,7 @@ def check_run_end(args, app_id, app_key, repo_owner, repo_name):
         tests and {count_fail} tests not passing.
 
         * [CDash results for test]({args.cdash_url})
-        * [Build log]({args.public_log_link}) (available after job completes)
+        * [Build log]({args.public_log_link}) (Updated every 5 minutes until job completes)
         * [CI Job]({metadata.batch_task_url()}) (requires AWS login)
         * [CI Job logs]({metadata.logs_url()}) (requires AWS login)
 
