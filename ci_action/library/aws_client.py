@@ -10,6 +10,7 @@ import re
 LOG = logging.getLogger("aws_client")
 
 
+
 @functools.lru_cache(maxsize=1)
 def get_batch_client():
     """Lazily initialize and cache the GitHub client manager from environment."""
