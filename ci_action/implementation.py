@@ -112,6 +112,9 @@ def prepare_and_launch_ci_test(
         action can fail (notifying us of an issue) even if part of the test
         launches successfully.
     """
+    # Some cleanup and housekeeping operations should not block the test launch
+    # but should be logged as non-blocking errors so the action can fail (notifying
+    # us of an issue).
     non_blocking_errors = []
 
     # Use got to clone the bundle repository into the bundle_repo_path using
@@ -211,24 +214,24 @@ def prepare_and_launch_ci_test(
         chosen_build_environments = [test_select]
 
     # Cancel prior unfinished tests jobs for the PR to save compute resources.
-    #try:
-    aws_client.cancel_prior_batch_jobs(
-        job_queue=infra_config['batch_queue'],
-        repo_name=environment_config['repo_name'],
-        pr=environment_config["pull_request_number"],
-    )
-    #except Exception as e:
-    #    non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
+    try:
+        aws_client.cancel_prior_batch_jobs(
+            job_queue=infra_config['batch_queue'],
+            repo_name=environment_config['repo_name'],
+            pr=environment_config["pull_request_number"],
+        )
+    except Exception as e:
+        non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
 
     # Update GitHub check runs to reflect the new test selection.
-    #try:
-    github_client.cancel_prior_unfinished_check_runs(
-        repo=environment_config['repo_name'],
-        owner=environment_config['owner'],
-        pr_number=environment_config["pull_request_number"],
-    )
-    #except Exception as e:
-    #    non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
+    try:
+        github_client.cancel_prior_unfinished_check_runs(
+            repo=environment_config['repo_name'],
+            owner=environment_config['owner'],
+            pr_number=environment_config["pull_request_number"],
+        )
+    except Exception as e:
+        non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
 
     # This is a constructor for the configuration needed to submit AWS Batch jobs.
     # This constructor reads configuration from the environment and must be
