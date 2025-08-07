@@ -5,15 +5,11 @@ currently implemented it doesn't do too much but exists to support
 the implementation inhereted from the GitHub Lambda function which
 required a more complex app-integration client
 """
-import datetime
 import github
 import logging
 import os
-import random
-import time
 from functools import lru_cache
 
-from ci_action.library import aws_client
 
 LOG = logging.getLogger("github_client")
 
@@ -43,9 +39,9 @@ class GitHubAppClientManager(object):
 
     def __init__(self, personal_access_token: str):
         """Initialize the GitHubAppClientManager."""
-        LOG.info(f'Initializing GitHubAppClientManager with personal_access_token, string of length {len(personal_access_token)}')
+        LOG.info(f'Initializing GitHubAppClientManager with personal_access_token, string of length {len(personal_access_token)}')  # noqa: E501
         if not personal_access_token:
-            raise ValueError("argument personal_access_token is required and must be a non-empty string")
+            raise ValueError("argument personal_access_token is required and must be a non-empty string")  # noqa: E501
         self.client = github.Github(personal_access_token)
 
     @classmethod
@@ -59,7 +55,7 @@ class GitHubAppClientManager(object):
         if 'GITHUB_TOKEN' in os.environ:
             return cls(personal_access_token=os.environ['GITHUB_TOKEN'])
 
-        # If environment variable GITHUB_TOKEN_FILE is set, read the content 
+        # If environment variable GITHUB_TOKEN_FILE is set, read the content
         # # and use it as a personal access token
         if 'GITHUB_TOKEN_FILE' in os.environ:
             with open(os.environ['GITHUB_TOKEN_FILE'], 'r') as f:

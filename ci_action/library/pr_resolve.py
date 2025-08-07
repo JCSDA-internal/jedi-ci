@@ -1,13 +1,8 @@
-import json
 import logging
-import os
 import re
-from typing import Any, Mapping, NamedTuple, Tuple, Union
-
-import github
+from typing import Any, Mapping, NamedTuple, Union
 
 from ci_action.library import github_client
-from ci_action.library import aws_client
 
 LOG = logging.getLogger("pr_resolve")
 
@@ -40,8 +35,7 @@ CI_TEST_SELECT_RE = re.compile(
 JEDI_BUNDLE_BRANCH_RE = re.compile(
     r'^jedi-ci-bundle-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)
 MANIFEST_BRANCH_RE = re.compile(
-    r'^jedi-ci-manifest-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)
-
+    r'^jedi-ci-manifest-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)  # noqa: E501
 
 
 class TestAnnotations(NamedTuple):
@@ -101,7 +95,7 @@ def read_test_annotations(
         next_ci_regex=NEXT_CI_RE,
         jedi_bundle_branch_regex=JEDI_BUNDLE_BRANCH_RE,
         manifest_branch_regex=MANIFEST_BRANCH_RE,
-        ) -> TestAnnotations:
+) -> TestAnnotations:
     """Reads all jedi-ci specific behavior annotations from a pull request.
 
     Returns a TestAnnotations named-tuple with all values set from the pull
@@ -194,7 +188,6 @@ def read_test_annotations(
         manifest_branch = manifest_branch_config[0]
         skip_cache = 'true'  # Do not read from the cache.
         rebuild_cache = 'false'  # Do not save build results to the cache.
-
 
     return TestAnnotations(
         build_group_map=build_group_pr_map,

@@ -58,7 +58,7 @@ def setup_git_credentials(github_token):
         LOG.info("JEDI_CI_TOKEN is set. Setting up Git credentials.")
 
         # Configure git to use the credential store
-        result = check_output(
+        check_output(
             ["git", "config", "--global", "credential.helper", "store"],
         )
         # Write the ~/.git-credentials file
@@ -116,10 +116,10 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='JEDI CI Action')
     parser.add_argument('--noop', action='store_true', default=False,
-                       help='No-op mode - exit immediately if set')
+                        help='No-op mode - exit immediately if set')
     # DO NOT SUBMIT: this must default to False before submission.
     parser.add_argument('--environment_query', action='store_true', default=False,
-                       help='Similar to --noop, but will show the environment config')
+                        help='Similar to --noop, but will show the environment config')
     args = parser.parse_args()
 
     if args.noop:
@@ -140,7 +140,7 @@ def main():
     # Get the CI config from the target repository which must have
     # been cloned into the github workspace directory.
     ci_config = ci_implementation.get_ci_config(target_repo_full_path)
-    LOG.info(f"ci config:")
+    LOG.info("ci config:")
     pretty_config = pprint.pformat(ci_config)
     LOG.info(pretty_config)
 
@@ -160,5 +160,6 @@ def main():
 
     return 0
 
+
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

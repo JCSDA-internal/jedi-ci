@@ -12,7 +12,7 @@ For reference, the general form of the ecbuild_bundle() call is:
                    [ MANUAL ]
                    [ RECURSIVE ] )
    Example:
-       ecbuild_bundle( PROJECT myproject GIT "https://github.com/myorg/myrepo.git" BRANCH mybranch UPDATE RECURSIVE )
+       ecbuild_bundle( PROJECT myproject GIT "https://github.com/myorg/myrepo.git" BRANCH mybranch UPDATE RECURSIVE )  # noqa: E501
 
 Since STASH is deprecated and is not supported by jedi-bundle or any
 JEDI software this tool does not allow STASH to be used. All other
@@ -25,6 +25,8 @@ from typing import Optional, Dict, Any
 import re
 
 from ci_action.library import github_client
+
+
 @dataclass
 class BundleLinePart:
     name: str
@@ -32,11 +34,9 @@ class BundleLinePart:
     is_attribute: bool
     # The value of the component if it is not an attribute.
     value: str = None
-    quote_char: str = str() # Defaults to empty string
+    quote_char: str = str()  # Defaults to empty string
 
     def __str__(self):
-        #if self.name == "PROJECT":
-        #    raise ValueError(f"PROJECT found!! {self.name} {self.quote_char}{self.value}{self.quote_char}... also isattrubute: {self.is_attribute}")
         if self.is_attribute:
             return f"{self.name}"
         else:
@@ -93,17 +93,17 @@ class BundleLine:
         elif match:
             self.source_reference = BundleLinePart("SOURCE", False, match.group(1))
             self.source_reference_type = "source"
-        
+
         if not self.source_reference_type:
             raise ValueError(f"Invalid bundle; no git or source\n {content}")
-        
+
         # Parsing the branch or tag, these are optional (not used by source path) but if
         # present they are mutually exclusive..
         match = self._branch_or_tag_re.match(content)
         if match:
             self.version_ref_type = match.group(1).lower()
             self.version_ref = BundleLinePart(match.group(1), False, match.group(2))
-        
+
         match = self._remote_rule_re.match(content)
         if match:
             self.remote_rule = BundleLinePart(match.group(1), True)
@@ -117,13 +117,18 @@ class BundleLine:
 
     def original_line(self):
         return self.content
-    
+
     def disabled_line(self):
         return f"# {self.content}"
-    
+
     def rewrite_original(self):
         """Render the original line with the original components; used for testing."""
-        render_components =  [self.project, self.source_reference, self.version_ref, self.remote_rule] + self.components
+        render_components = [
+            self.project,
+            self.source_reference,
+            self.version_ref,
+            self.remote_rule,
+        ] + self.components
         content = " ".join([str(c) for c in render_components])
         return f"ecbuild_bundle( {content} )"
 
@@ -146,7 +151,7 @@ class BundleLine:
         version_ref = version_ref or self.version_ref
 
         # Create list of components to render.
-        render_components =  [self.project, source_reference, version_ref]
+        render_components = [self.project, source_reference, version_ref]
         if remote_rule:
             render_components.append(remote_rule)
         render_components += self.components
@@ -169,13 +174,13 @@ class CMakeFile:
             self.lines.append(line)
             if self._ecbuild_bundle_re.match(line):
                 bundle_line = BundleLine(line)
-                self.bundle_lines[i] = bundle_line  
+                self.bundle_lines[i] = bundle_line
                 self.bundle_line_names[bundle_line.project_name] = bundle_line
 
     def get_github_urls(self):
         url_map = {}
         for bundle_name, bundle_line in self.bundle_line_names.items():
-            if bundle_line.source_reference_type == "git" and 'github.com' in bundle_line.source_reference.value:
+            if bundle_line.source_reference_type == "git" and 'github.com' in bundle_line.source_reference.value:  # noqa: E501
                 url_map[bundle_name] = bundle_line.source_reference.value
         return url_map
 
@@ -185,7 +190,7 @@ class CMakeFile:
             enabled_bundles: Optional[Container[str]] = None,
             rewrite_rules: Optional[dict[str, str]] = None,
             build_group_commit_map: Optional[Dict[str, Dict[str, Any]]] = None,
-            ):
+    ):
         """Rewrite the CMakeFile object to the file_object.
 
         Args:
@@ -229,7 +234,7 @@ class CMakeFile:
                 continue
 
             # Check if this bundle matches a github org/repo key in the build group commit map
-            if bundle_line.github_org_repo_key and bundle_line.github_org_repo_key in build_group_commit_map:
+            if bundle_line.github_org_repo_key and bundle_line.github_org_repo_key in build_group_commit_map:  # noqa: E501
                 # Use the commit hash as a tag
                 commit_info = build_group_commit_map[bundle_line.github_org_repo_key]
                 commit_hash = commit_info["version_ref"]["commit"]
@@ -244,7 +249,7 @@ class CMakeFile:
 
             # Finally if the line is enabled and has no rewrite, use the original line.
             lines.append(bundle_line.original_line() + '\n')
-        
+
         # Write the lines to the file.
         file_object.writelines(lines)
 
@@ -275,7 +280,7 @@ class CMakeFile:
                                       enabled_bundles: Container[str],
                                       build_group_commit_map: Dict[str, Dict[str, Any]]):
         """Rewrite the CMakeFile object to the file_object."""
-        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)
+        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)  # noqa: E501
 
     def rewrite_build_group_blacklist(self,
                                       file_object,
@@ -285,4 +290,4 @@ class CMakeFile:
         enabled_bundles = set(self.bundle_line_names.keys())
         for bundle in disabled_bundles:
             enabled_bundles.discard(bundle)
-        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)
+        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)  # noqa: E501
