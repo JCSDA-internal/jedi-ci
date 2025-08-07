@@ -99,6 +99,8 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
     # with capture groups for the commit and build environment
     regex = re.compile(f'jedi-ci-{repo_name}-{pr}' + r'-(\w+)-(\w+)')
 
+    LOG.info(f'Using regex: {regex.pattern}')
+
     pending_jobs_statuses = ['SUBMITTED', 'PENDING', 'RUNNABLE', 'STARTING', 'RUNNING']
 
     # Use list_jobs with a filter to find jobs from our current repo and pull request.
@@ -113,12 +115,16 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
         job_name = job_summary['jobName']
         job_id = job_summary['jobId']
 
+        LOG.info(f'{job_name} -> status "{job_status}"')
+
         if job_status not in pending_jobs_statuses:
+            LOG.info(f'{job_name} not pending, skipping')
             continue
 
         # Regex to extract commit, and build environment
         match = regex.search(job_name)
         if not match:
+            LOG.info(f'{job_name} not matching regex, skipping')
             continue
 
         # Cancel any running or pending jobs for the pull request.
