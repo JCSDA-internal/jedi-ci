@@ -105,7 +105,15 @@ def prepare_and_launch_ci_test(
         ci_config: The CI configuration for the bundle configuration and cmake build.
         bundle_repo_path: The path to the bundle repository.
         target_repo_path: The path to the target repository.
+
+    Returns:
+        A list of errors that occurred during the test launch. Any potentially
+        recoverable errors should be returned as a list of strings so that the
+        action can fail (notifying us of an issue) even if part of the test
+        launches successfully.
     """
+    non_blocking_errors = []
+
     # Use got to clone the bundle repository into the bundle_repo_path using
     # bundle_repository and bundle_branch
     timer = TimeCheckpointer()
@@ -202,21 +210,25 @@ def prepare_and_launch_ci_test(
     else:
         chosen_build_environments = [test_select]
 
-    # Write test lock file
-    # TODO: this will not be included in first pass.
-
     # Cancel prior unfinished tests jobs for the PR to save compute resources.
+    #try:
     aws_client.cancel_prior_batch_jobs(
         job_queue=infra_config['batch_queue'],
         repo_name=environment_config['repo_name'],
         pr=environment_config["pull_request_number"],
-        current_commit=environment_config["trigger_commit"],
     )
+    #except Exception as e:
+    #    non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
 
+    # Update GitHub check runs to reflect the new test selection.
+    #try:
     github_client.cancel_prior_unfinished_check_runs(
         repo=environment_config['repo_name'],
         owner=environment_config['owner'],
-        pr_number=environment_config["pull_request_number"])
+        pr_number=environment_config["pull_request_number"],
+    )
+    #except Exception as e:
+    #    non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
 
     # This is a constructor for the configuration needed to submit AWS Batch jobs.
     # This constructor reads configuration from the environment and must be
@@ -272,3 +284,4 @@ def prepare_and_launch_ci_test(
             f'{timer.checkpoint()}\nSubmitted Batch Job for build environment '
             f'{build_environment}: "{job_arn}".'
         )
+    return non_blocking_errors

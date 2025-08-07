@@ -4,7 +4,10 @@
 
 import boto3
 import functools
+import logging
 import re
+
+LOG = logging.getLogger("aws_client")
 
 
 @functools.lru_cache(maxsize=1)
@@ -79,7 +82,7 @@ class BatchSubmitConfigBuilder(object):
             build_environment=build_environment)
 
 
-def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int, current_commit: str):
+def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
     """List currently running jedi-ci jobs and cancel them based on commit/build environment logic.
 
     If the commit does not match the current commit cancel the job.
@@ -119,40 +122,36 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int, current_com
             continue
         job_commit = match.group(1)
 
-        # Cancel any running or pending jobs not matching the current commit. These jobs
-        # are outdated and will waste resources if run to completion.
-        if job_commit != current_commit:
-            jobs_to_cancel.append({
-                'jobId': job_id,
-                'jobName': job_name,
-                'jobStatus': job_status,
-                'reason': f"Cancelling job for outdated commit {job_commit} (current: {current_commit})"
-            })
+        # Cancel any running or pending jobs for the pull request.
+        jobs_to_cancel.append({
+            'jobId': job_id,
+            'jobName': job_name,
+            'jobStatus': job_status,
+            'reason': "Preempted by new test run"
+        })
 
     # Cancel the identified jobs. A failed cancellation will be caught to ensure that
     # the new job is allowed to run (status changes may cause jobs to be uncancelable).
     cancelled_jobs = []
     for job_info in jobs_to_cancel:
-        try:
-            if job_info['jobStatus'] in ['STARTING', 'RUNNING']:
-                # Use terminate_job for running jobs
-                client.terminate_job(
-                    jobId=job_info['jobId'],
-                    reason=job_info['reason']
-                )
-                print(f"Terminated job {job_info['jobName']} (ID: {job_info['jobId']})")
-            else:
-                # Use cancel_job for pending jobs
-                client.cancel_job(
-                    jobId=job_info['jobId'],
-                    reason=job_info['reason']
-                )
-                print(f"Cancelled job {job_info['jobName']} (ID: {job_info['jobId']})")
+        if job_info['jobStatus'] in ['STARTING', 'RUNNING']:
+            LOG.info(f"Terminating job {job_info['jobName']} (ID: {job_info['jobId']})")
+            # Use terminate_job for running jobs
+            client.terminate_job(
+                jobId=job_info['jobId'],
+                reason=job_info['reason']
+            )
+            print(f"Terminated job {job_info['jobName']} (ID: {job_info['jobId']})")
+        else:
+            # Use cancel_job for pending jobs
+            LOG.info(f"Cancelling job {job_info['jobName']} (ID: {job_info['jobId']})")
+            client.cancel_job(
+                jobId=job_info['jobId'],
+                reason=job_info['reason']
+            )
+            print(f"Cancelled job {job_info['jobName']} (ID: {job_info['jobId']})")
 
-            cancelled_jobs.append(job_info)
-
-        except Exception as e:
-            print(f"Error cancelling job {job_info['jobName']} (ID: {job_info['jobId']}): {e}")
+        cancelled_jobs.append(job_info)
 
     return cancelled_jobs
 
