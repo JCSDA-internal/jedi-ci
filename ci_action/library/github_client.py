@@ -4,24 +4,6 @@ This class wraps a number of GitHub client types and functions. As
 currently implemented it doesn't do too much but exists to support
 the implementation inhereted from the GitHub Lambda function which
 required a more complex app-integration client
-
-## DELETE ALL THIS
-
-# pr examples: mypr = 2966   pr with 100s of commits: 2894
-import github
-import github_client
-cm = github_client.GitHubAppClientManager()
-oops = cm.get_repository('oops', 'jcsda-internal')
-pr = oops.get_pull(2966)
-
-commit = oops.get_commit(sha=pr.head.sha)
-check_runs = list(commit.get_check_runs())
-
-
-
-
-## END DELETE
-
 """
 import github
 import logging
@@ -171,6 +153,20 @@ class GitHubAppClientManager(object):
                     conclusion='skipped',
                     output={'title': 'preempted by newer test', 'summary': '', 'text': ''},
                 )
+
+
+def cancel_prior_unfinished_check_runs(self, repo, owner, pr_number, history_limit=20)
+    """Cancel any unfinished check runs on older commits of a PR.
+
+        Args:
+            repo: The name of the repository.
+            owner: The owner of the repository (probably "jcsda-internal").
+            pr_number: The number of the PR.
+            history_limit: The number of recent commits to consider (manages performance for large PRs).
+    """
+    github_app = GitHubAppClientManager.init_from_environment()
+    return github_app.cancel_prior_unfinished_check_runs(repo, owner, pr_number, history_limit)
+
 
 def create_check_runs(build_environment, repo, owner, trigger_commit, next_suffix):
     """Create check runs (unit and integration) for a given build environment.
