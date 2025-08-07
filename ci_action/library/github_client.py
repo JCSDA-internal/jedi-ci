@@ -4,16 +4,41 @@ This class wraps a number of GitHub client types and functions. As
 currently implemented it doesn't do too much but exists to support
 the implementation inhereted from the GitHub Lambda function which
 required a more complex app-integration client
+
+## DELETE ALL THIS
+
+# pr examples: mypr = 2966   pr with 100s of commits: 2894
+import github
+import github_client
+cm = github_client.GitHubAppClientManager()
+oops = cm.get_repository('oops', 'jcsda-internal')
+pr = oops.get_pull(2966)
+
+commit = oops.get_commit(sha=pr.head.sha)
+check_runs = list(commit.get_check_runs())
+
+
+
+
+## END DELETE
+
 """
 import github
 import logging
 import os
 from functools import lru_cache
-
+import datetime
 
 LOG = logging.getLogger("github_client")
 
 GITHUB_URI = "https://github.com/"
+
+UNIT_TEST_PREFIX = 'JEDI unit test'
+INTEGRATION_TEST_PREFIX = 'JEDI integration test'
+
+def _check_run_name_is_jedi(check_run_name: str) -> bool:
+    """Check if a check run name is a JEDI unit or integration test."""
+    return check_run_name.startswith(UNIT_TEST_PREFIX) or check_run_name.startswith(INTEGRATION_TEST_PREFIX)
 
 
 class GitHubAppClientManager(object):
@@ -78,6 +103,74 @@ class GitHubAppClientManager(object):
         )
         return check_run
 
+    def cancel_prior_unfinished_check_runs(self, repo, owner, pr_number, history_limit=20):
+        """Cancel any unfinished check runs on older commits of a PR.
+
+        Args:
+            repo: The name of the repository.
+            owner: The owner of the repository (probably "jcsda-internal").
+            pr_number: The number of the PR.
+            history_limit: The number of recent commits to consider (manages performance for large PRs).
+        """
+        r = self.get_repository(repo, owner)
+        pr = r.get_pull(pr_number)
+        # This is the most recent commit on the PR listed in chronological order (oldest->newest).
+        commits = list(pr.get_commits())
+        commits.reverse()  # Reverse list to get newest->oldest ordering.
+
+        if len(commits) < 1:
+            LOG.warning(f'No commits found for PR {pr_number}')
+            return
+
+        # Get the most recent commits (up to the `history_limit`) and discard
+        # the trigger commit.
+        trigger_commit = commits[0]
+        commits = commits[1:history_limit]
+
+        # Go through each commit and cancel any unfinished check runs. Once a
+        # commit is visited that has check runs, stop (since older commits will
+        # have already been checked).
+        found_jedi_check_runs = False
+        for commit in commits:
+            if found_jedi_check_runs:
+                break
+            check_runs = commit.get_check_runs()
+            for check_run in check_runs:
+                if not _check_run_name_is_jedi(check_run.name):
+                    continue
+
+                # Once ANY JEDI check runs are found, end further processing of older commits
+                # since they will either be complete, or they will have been preempted by
+                # the prior tests.
+                found_jedi_check_runs = True
+
+                # Only update status unfinished check runs.
+                if check_run.status in ['queued', 'in_progress']:
+                    LOG.info(f'Cancelling unfinished check run {check_run.id} on commit {commit.sha}')
+                    check_run.edit(
+                        status='completed',
+                        conclusion='skipped',
+                        output={'title': 'preempted by newer test', 'summary': '', 'text': ''},
+                    )
+
+        # Evaluate the current commit to see if it has any "old" check runs. This commit
+        # Is handled separately since we want to continue processing older commits even
+        # if the current commit has a JEDI check run. Additionally we use a 10-minute
+        # heuristic to avoid updating the status of check runs that are launched
+        # by this current run
+        for check_run in trigger_commit.get_check_runs():
+            if not _check_run_name_is_jedi(check_run.name):
+                continue
+            # Ignore checks launched in the last 10 minutes (could be from this workflow run).
+            if datetime.datetime.now(datetime.timezone.utc) - check_run.started_at < datetime.timedelta(minutes=10):
+                continue
+            if check_run.status in ['queued', 'in_progress']:
+                LOG.info(f'Cancelling unfinished check run {check_run.id} on current commit')
+                check_run.edit(
+                    status='completed',
+                    conclusion='skipped',
+                    output={'title': 'preempted by newer test', 'summary': '', 'text': ''},
+                )
 
 def create_check_runs(build_environment, repo, owner, trigger_commit, next_suffix):
     """Create check runs (unit and integration) for a given build environment.
@@ -100,8 +193,8 @@ def create_check_runs(build_environment, repo, owner, trigger_commit, next_suffi
     """
     build_environment_name = build_environment + next_suffix
     github_app = GitHubAppClientManager.init_from_environment()
-    unit_run_name = f'JEDI unit test: {build_environment_name}'
-    integration_run_name = f'JEDI integration test: {build_environment_name}'
+    unit_run_name = f'{UNIT_TEST_PREFIX}: {build_environment_name}'
+    integration_run_name = f'{INTEGRATION_TEST_PREFIX}: {build_environment_name}'
     unit_run = github_app.create_check_run(
         repo, owner, trigger_commit, unit_run_name)
     integration_run = github_app.create_check_run(

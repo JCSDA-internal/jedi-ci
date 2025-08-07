@@ -205,14 +205,18 @@ def prepare_and_launch_ci_test(
     # Write test lock file
     # TODO: this will not be included in first pass.
 
-    # check the lock file and cancel prior unfinished tests jobs for the PR
-    # to save compute resources.
+    # Cancel prior unfinished tests jobs for the PR to save compute resources.
     aws_client.cancel_prior_batch_jobs(
         job_queue=infra_config['batch_queue'],
         repo_name=environment_config['repo_name'],
         pr=environment_config["pull_request_number"],
         current_commit=environment_config["trigger_commit"],
     )
+
+    github_client.cancel_prior_unfinished_check_runs(
+        repo=environment_config['repo_name'],
+        owner=environment_config['owner'],
+        pr_number=environment_config["pull_request_number"])
 
     # This is a constructor for the configuration needed to submit AWS Batch jobs.
     # This constructor reads configuration from the environment and must be
