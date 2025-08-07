@@ -155,7 +155,7 @@ class GitHubAppClientManager(object):
                 )
 
 
-def cancel_prior_unfinished_check_runs(self, repo, owner, pr_number, history_limit=20)
+def cancel_prior_unfinished_check_runs(self, repo, owner, pr_number, history_limit=20):
     """Cancel any unfinished check runs on older commits of a PR.
 
         Args:
