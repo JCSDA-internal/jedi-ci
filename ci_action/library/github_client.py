@@ -18,9 +18,12 @@ GITHUB_URI = "https://github.com/"
 UNIT_TEST_PREFIX = 'JEDI unit test'
 INTEGRATION_TEST_PREFIX = 'JEDI integration test'
 
+
 def _check_run_name_is_jedi(check_run_name: str) -> bool:
     """Check if a check run name is a JEDI unit or integration test."""
-    return check_run_name.startswith(UNIT_TEST_PREFIX) or check_run_name.startswith(INTEGRATION_TEST_PREFIX)
+    starts_with_unit_test = check_run_name.startswith(UNIT_TEST_PREFIX)
+    starts_with_integration_test = check_run_name.startswith(INTEGRATION_TEST_PREFIX)
+    return starts_with_unit_test or starts_with_integration_test
 
 
 class GitHubAppClientManager(object):
@@ -92,7 +95,7 @@ class GitHubAppClientManager(object):
             repo: The name of the repository.
             owner: The owner of the repository (probably "jcsda-internal").
             pr_number: The number of the PR.
-            history_limit: The number of recent commits to consider (manages performance for large PRs).
+            history_limit: Number of recent commits to consider (manages performance).
         """
         r = self.get_repository(repo, owner)
         pr = r.get_pull(pr_number)
@@ -128,7 +131,7 @@ class GitHubAppClientManager(object):
 
                 # Only update status unfinished check runs.
                 if check_run.status in ['queued', 'in_progress']:
-                    LOG.info(f'Cancelling unfinished check run {check_run.id} on commit {commit.sha}')
+                    LOG.info(f'Cancelling unfinished check run "{check_run.id}"')
                     check_run.edit(
                         status='completed',
                         conclusion='skipped',
@@ -144,7 +147,8 @@ class GitHubAppClientManager(object):
             if not _check_run_name_is_jedi(check_run.name):
                 continue
             # Ignore checks launched in the last 10 minutes (could be from this workflow run).
-            if datetime.datetime.now(datetime.timezone.utc) - check_run.started_at < datetime.timedelta(minutes=10):
+            time_now = datetime.datetime.now(datetime.timezone.utc)
+            if time_now - check_run.started_at < datetime.timedelta(minutes=10):
                 continue
             if check_run.status in ['queued', 'in_progress']:
                 LOG.info(f'Cancelling unfinished check run {check_run.id} on current commit')
@@ -162,7 +166,7 @@ def cancel_prior_unfinished_check_runs(repo, owner, pr_number, history_limit=20)
             repo: The name of the repository.
             owner: The owner of the repository (probably "jcsda-internal").
             pr_number: The number of the PR.
-            history_limit: The number of recent commits to consider (manages performance for large PRs).
+            history_limit: The number of recent commits to consider (manages performance).
     """
     github_app = GitHubAppClientManager.init_from_environment()
     return github_app.cancel_prior_unfinished_check_runs(repo, owner, pr_number, history_limit)

@@ -10,7 +10,6 @@ import re
 LOG = logging.getLogger("aws_client")
 
 
-
 @functools.lru_cache(maxsize=1)
 def get_batch_client():
     """Lazily initialize and cache the GitHub client manager from environment."""
@@ -121,7 +120,6 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
         match = regex.search(job_name)
         if not match:
             continue
-        job_commit = match.group(1)
 
         # Cancel any running or pending jobs for the pull request.
         jobs_to_cancel.append({
