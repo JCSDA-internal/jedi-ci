@@ -83,14 +83,11 @@ class BatchSubmitConfigBuilder(object):
 
 
 def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
-    """List currently running jedi-ci jobs and cancel them based on commit/build environment logic.
-
-    If the commit does not match the current commit cancel the job.
+    """List currently running jedi-ci jobs for the PR and cancel.
 
     Args:
         repo_name: Repository name
         pr: Pull request number
-        current_commit: Current commit hash to compare against
     """
     client = get_batch_client()
     jobs_to_cancel = []
@@ -99,41 +96,39 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
     # with capture groups for the commit and build environment
     regex = re.compile(f'jedi-ci-{repo_name}-{pr}' + r'-(\w+)-(\w+)')
 
-    LOG.info(f'Using regex: {regex.pattern}')
-
     pending_jobs_statuses = ['SUBMITTED', 'PENDING', 'RUNNABLE', 'STARTING', 'RUNNING']
 
     # Use list_jobs with a filter to find jobs from our current repo and pull request.
-    response = client.list_jobs(
+    list_jobs_paginator = client.get_paginator('list_jobs')
+    response_paginator = list_jobs_paginator.paginate(
             jobQueue=job_queue,
             filters=[{'name': 'JOB_NAME', 'values': [f'jedi-ci-{repo_name}-{pr}-*']}],
             maxResults=20,
     )
 
-    for job_summary in response['jobSummaryList']:
-        job_status = job_summary['status']
-        job_name = job_summary['jobName']
-        job_id = job_summary['jobId']
+    for response in response_paginator:
+        for job_summary in response['jobSummaryList']:
+            job_status = job_summary['status']
+            job_name = job_summary['jobName']
+            job_id = job_summary['jobId']
 
-        LOG.info(f'{job_name} -> status "{job_status}"')
+            LOG.info(f'Evaluating prior job {job_name} -> status "{job_status}"')
 
-        if job_status not in pending_jobs_statuses:
-            LOG.info(f'{job_name} not pending, skipping')
-            continue
+            if job_status not in pending_jobs_statuses:
+                continue
 
-        # Regex to extract commit, and build environment
-        match = regex.search(job_name)
-        if not match:
-            LOG.info(f'{job_name} not matching regex, skipping')
-            continue
+            # Regex to extract commit, and build environment
+            match = regex.search(job_name)
+            if not match:
+                continue
 
-        # Cancel any running or pending jobs for the pull request.
-        jobs_to_cancel.append({
-            'jobId': job_id,
-            'jobName': job_name,
-            'jobStatus': job_status,
-            'reason': "Preempted by new test run"
-        })
+            # Cancel any running or pending jobs for the pull request.
+            jobs_to_cancel.append({
+                'jobId': job_id,
+                'jobName': job_name,
+                'jobStatus': job_status,
+                'reason': "Preempted by new test run"
+            })
 
     # Cancel the identified jobs. A failed cancellation will be caught to ensure that
     # the new job is allowed to run (status changes may cause jobs to be uncancelable).
@@ -158,6 +153,7 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
 
         cancelled_jobs.append(job_info)
 
+    LOG.info(f'Cancelled {len(cancelled_jobs)} jobs')
     return cancelled_jobs
 
 
