@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import pathlib
+import pprint
 import subprocess
 import sys
 import textwrap
@@ -158,6 +159,7 @@ def main():
 
     # Get environment attributes set by GitHub.
     env_config = get_environment_config()
+    LOG.info(f"Environment config\n: {pprint.pformat(env_config)}")
 
     # Setup Git credentials before doing anything else
     setup_git_credentials(os.environ.get('JEDI_CI_TOKEN'))
