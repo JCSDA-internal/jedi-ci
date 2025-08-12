@@ -1,0 +1,23 @@
+# This dockerfile is used to build the base image for the JEDI-CI runner. The
+# base image includes all dependencies required to install and launch
+# the jedi-ci action library.
+
+FROM python:3.11-slim
+
+# Install required packages
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python build tools
+RUN pip install --no-cache-dir \
+    pip \
+    setuptools \
+    "requests>=2.32" \
+    "PyJWT>=2.10" \
+    "cryptography>=45.0" \
+    "PyGithub>=2.6" \
+    "boto3>=1.40" \
+    "pyyaml>=6"

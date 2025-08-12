@@ -1,0 +1,32 @@
+name: Docker Image CI for GHCR
+
+on:
+  push:
+    branches:
+      - develop
+      - feature/oops-fixes
+  pull_request:
+    branches:
+        - develop
+
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-latest
+    steps: 
+      - name: Checkout image
+        uses: actions/checkout@v4
+      
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: https://ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          file: Dockerfile.base
+          push: true
+          tags: ghcr.io/JCSDA-internal/jedi-ci-base:latest
+          
