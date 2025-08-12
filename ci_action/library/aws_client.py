@@ -115,15 +115,18 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
             if job_status not in pending_jobs_statuses:
                 continue
 
-            # Regex ensures job matches current PR. Cancel any running or pending job
-            # from the current pull request.
-            if regex.search(job_name):
-                jobs_to_cancel.append({
-                    'jobId': job_id,
-                    'jobName': job_name,
-                    'jobStatus': job_status,
-                    'reason': "Preempted by new test run"
-                })
+            # Regex ensures job matches current PR.
+            match = regex.search(job_name)
+            if not match:
+                continue
+
+            # Cancel any running or pending jobs for the pull request.
+            jobs_to_cancel.append({
+                'jobId': job_id,
+                'jobName': job_name,
+                'jobStatus': job_status,
+                'reason': "Preempted by new test run"
+            })
 
     # Cancel the identified jobs. A failed cancellation will be caught to ensure that
     # the new job is allowed to run (status changes may cause jobs to be uncancellable).
