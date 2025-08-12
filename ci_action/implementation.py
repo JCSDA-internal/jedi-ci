@@ -215,7 +215,7 @@ def prepare_and_launch_ci_test(
         )
         # Cancel prior unfinished check runs for the PR.
         cxl_checkrun_future = executor.submit(
-            github_client.cancel_prior_unfinished_check_runs
+            github_client.cancel_prior_unfinished_check_runs,
             repo=environment_config['repo_name'],
             owner=environment_config['owner'],
             pr_number=environment_config["pull_request_number"],
