@@ -1,12 +1,9 @@
-name: Docker Image CI for GHCR
+name: Push Container to GHCR
 
 on:
   push:
     branches:
       - develop
-  pull_request:
-    branches:
-        - develop
 
 jobs:
   build_and_publish:
@@ -28,4 +25,3 @@ jobs:
           file: Dockerfile.base
           push: true
           tags: ghcr.io/jcsda-internal/jedi-ci-base:latest
-          
