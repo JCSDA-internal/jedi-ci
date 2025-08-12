@@ -6,8 +6,7 @@ FROM python:3.11-alpine
 
 # Install required packages
 RUN apk add --no-cache \
-    git \
-    curl
+    git
 
 # Install Python build tools
 RUN pip install --no-cache-dir \
