@@ -103,7 +103,7 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
     response_paginator = list_jobs_paginator.paginate(
             jobQueue=job_queue,
             filters=[{'name': 'JOB_NAME', 'values': [f'jedi-ci-{repo_name}-{pr}-*']}],
-            maxResults=10,
+            maxResults=20,
     )
 
     for response in response_paginator:
@@ -115,7 +115,7 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
             if job_status not in pending_jobs_statuses:
                 continue
 
-            # Regex ensures job matches current PR.
+            # Regex to extract commit, and build environment
             match = regex.search(job_name)
             if not match:
                 continue
