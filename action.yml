@@ -36,21 +36,14 @@ inputs:
     required: false
     default: 'false'
 
+# GITHUB_TOKEN: ${{ inputs.github_token }}
 runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
-    GITHUB_TOKEN: ${{ inputs.github_token }}
-    TRIGGER_REPO: ${{ inputs.repository }}
-    TRIGGER_SHA: ${{ inputs.commit_sha }}
-    TRIGGER_PR: ${{ inputs.pr_number }}
-    TRIGGER_MANIFEST_NAME: ${{ inputs.manifest_name }}
     UNITTEST_TAG: ${{ inputs.test_tag }}
-    JEDI_COMPILER: ${{ inputs.compiler }}
     CONTAINER_VERSION: ${{ inputs.container_version }}
-    SKIP_CACHE: ${{ inputs.skip_cache }}
-    REBUILD_CACHE: ${{ inputs.rebuild_cache }}
-    BUNDLE_BRANCH: ${{ inputs.jedi_bundle_branch }}
+    BUNDLE_BRANCH: ${{ inputs.bundle_branch }}
     TEST_SCRIPT: ${{ inputs.test_script }}
     TARGET_REPO_DIR: ${{ inputs.target_repo_dir }}
     BUNDLE_REPOSITORY: ${{ inputs.bundle_repository }}
