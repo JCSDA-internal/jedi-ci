@@ -2,14 +2,12 @@
 # base image includes all dependencies required to install and launch
 # the jedi-ci action library.
 
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
 # Install required packages
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     git \
-    curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    curl
 
 # Install Python build tools
 RUN pip install --no-cache-dir \
