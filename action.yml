@@ -7,6 +7,10 @@ inputs:
     description: 'Container version (latest, next)'
     required: true
     default: 'latest'
+  jedi_ci_token:
+    description: 'GitHub token associated with the JEDI CI GitHub app'
+    required: false
+    default: ''
   test_script:
     description: 'Test script to run (must be in //jedi-ci/shell/)'
     required: false
@@ -49,6 +53,7 @@ runs:
     BUNDLE_REPOSITORY: ${{ inputs.bundle_repository }}
     CI_SELF_TEST: ${{ inputs.self_test }}
     UNITTEST_BUNDLE_DEPENDENCIES: ${{ inputs.unittest_dependencies }}
+    JEDI_CI_TOKEN: ${{ inputs.jedi_ci_token }}
 
 branding:
   icon: 'play'
