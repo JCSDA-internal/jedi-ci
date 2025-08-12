@@ -165,7 +165,7 @@ def main():
     # Prepare and launch the CI test
     errors = ci_implementation.prepare_and_launch_ci_test(
         infra_config=JEDI_CI_INFRA_CONFIG,
-        environment_config=env_config,
+        config=env_config,
         bundle_repo_path=os.path.join(workspace_dir, 'bundle'),
         target_repo_path=target_repo_full_path)
 
