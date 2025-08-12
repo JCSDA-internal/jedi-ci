@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - develop
-      - feature/oops-fixes
   pull_request:
     branches:
         - develop
@@ -28,5 +27,5 @@ jobs:
         with:
           file: Dockerfile.base
           push: true
-          tags: ghcr.io/JCSDA-internal/jedi-ci-base:latest
+          tags: ghcr.io/jcsda-internal/jedi-ci-base:latest
           
