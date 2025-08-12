@@ -273,9 +273,6 @@ if ! util.check_run_eval_test_xml $ALLOWED_UNIT_FAIL_RATE ; then
 fi
 
 
-
-
-
 #
 # Build and run integration tests. This section will not be run if we detect
 # a failure above (implemented)

@@ -86,6 +86,7 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
     """List currently running jedi-ci jobs for the PR and cancel.
 
     Args:
+        job_queue: AWS Batch job queue ARN
         repo_name: Repository name
         pr: Pull request number
     """
@@ -131,7 +132,7 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
             })
 
     # Cancel the identified jobs. A failed cancellation will be caught to ensure that
-    # the new job is allowed to run (status changes may cause jobs to be uncancelable).
+    # the new job is allowed to run (status changes may cause jobs to be uncancellable).
     cancelled_jobs = []
     for job_info in jobs_to_cancel:
         if job_info['jobStatus'] in ['STARTING', 'RUNNING']:
