@@ -209,7 +209,9 @@ Resources:
               "Sid": "AllowSubmitToQueue",
               "Effect": "Allow",
               "Action": [
-                "batch:SubmitJob"
+                "batch:SubmitJob",
+                "batch:CancelJob",
+                "batch:TerminateJob"
               ],
               "Resource": [
                 "${JobQueue}",
@@ -218,7 +220,8 @@ Resources:
                 "${BuildIntelJobDefinition}",
                 "${BuildGcc11NextJobDefinition}",
                 "${BuildGccNextJobDefinition}",
-                "${BuildIntelNextJobDefinition}"
+                "${BuildIntelNextJobDefinition}",
+                "arn:aws:batch:${AWS::Region}:${AWS::AccountId}:job/*"
               ]
             },
             {

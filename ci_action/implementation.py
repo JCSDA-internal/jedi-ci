@@ -69,7 +69,7 @@ def get_ci_config(target_repo_path):
     # Validate required fields.
     required_fields = [
         'bundle_repository', 'bundle_branch', 'test_script',
-        'name', 'test_tag', 'bundle_name'
+        'name', 'test_tag', 'bundle_name', 'uri'
     ]
     for field in required_fields:
         if field not in ci_config:
@@ -105,7 +105,18 @@ def prepare_and_launch_ci_test(
         ci_config: The CI configuration for the bundle configuration and cmake build.
         bundle_repo_path: The path to the bundle repository.
         target_repo_path: The path to the target repository.
+
+    Returns:
+        A list of errors that occurred during the test launch. Any potentially
+        recoverable errors should be returned as a list of strings so that the
+        action can fail (notifying us of an issue) even if part of the test
+        launches successfully.
     """
+    # Some cleanup and housekeeping operations should not block the test launch
+    # but should be logged as non-blocking errors so the action can fail (notifying
+    # us of an issue).
+    non_blocking_errors = []
+
     # Use got to clone the bundle repository into the bundle_repo_path using
     # bundle_repository and bundle_branch
     timer = TimeCheckpointer()
@@ -118,7 +129,7 @@ def prepare_and_launch_ci_test(
 
     # Fetch config from the pull request data
     test_annotations = pr_resolve.read_test_annotations(
-        repo_uri=ci_config['bundle_repository'],
+        repo_uri=ci_config['uri'],
         pr_number=environment_config['pull_request_number'],
         pr_payload=environment_config['pr_payload'],
         testmode=ci_config.get('test_mode', None) == 'SELF_TEST_JEDI_CI',
@@ -155,7 +166,7 @@ def prepare_and_launch_ci_test(
     with open(bundle_file_unittest, 'w') as f:
         bundle.rewrite_build_group_whitelist(
             file_object=f,
-            enabled_bundles=ci_config['unittest'],
+            enabled_bundles=set(ci_config.get('unittest', []) + [environment_config['repo_name']]),
             build_group_commit_map=repo_to_commit_hash,
         )
 
@@ -202,11 +213,25 @@ def prepare_and_launch_ci_test(
     else:
         chosen_build_environments = [test_select]
 
-    # Write test lock file
-    # TODO: this will not be included in first pass.
+    # Cancel prior unfinished tests jobs for the PR to save compute resources.
+    try:
+        aws_client.cancel_prior_batch_jobs(
+            job_queue=infra_config['batch_queue'],
+            repo_name=environment_config['repo_name'],
+            pr=environment_config["pull_request_number"],
+        )
+    except Exception as e:
+        non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
 
-    # check the lock file and cancel old jobs for PR
-    # TODO: this will not be included in first pass.
+    # Update GitHub check runs to reflect the new test selection.
+    try:
+        github_client.cancel_prior_unfinished_check_runs(
+            repo=environment_config['repo_name'],
+            owner=environment_config['owner'],
+            pr_number=environment_config["pull_request_number"],
+        )
+    except Exception as e:
+        non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
 
     # This is a constructor for the configuration needed to submit AWS Batch jobs.
     # This constructor reads configuration from the environment and must be
@@ -262,3 +287,4 @@ def prepare_and_launch_ci_test(
             f'{timer.checkpoint()}\nSubmitted Batch Job for build environment '
             f'{build_environment}: "{job_arn}".'
         )
+    return non_blocking_errors

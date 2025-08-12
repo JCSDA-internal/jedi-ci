@@ -126,7 +126,6 @@ ALLOWED_CONCLUSIONS = [
     "neutral",
     "success",
     "skipped",
-    "stale",
     "timed_out",
 ]
 NotSet = github.GithubObject.NotSet
@@ -538,8 +537,8 @@ def check_run_update(args, app_id, app_key, repo_owner, repo_name):
         metadata = ECSTaskMetaData(args.ecs_metadata_uri, args.batch_task_id)
         update_kwargs['details_url'] = metadata.batch_task_url()
         test_info_links += (
-            f' * [Test task]({metadata.batch_task_url()}) (requires AWS login)\n'
-            f' * [Test logs]({metadata.logs_url()}) (requires AWS login)\n\n')
+            f' * [CI task]({metadata.batch_task_url()}) (requires AWS login)\n'
+            f' * [CI logs]({metadata.logs_url()}) (requires AWS login)\n\n')
 
     output_md = f'## {check_run.name}\n\n' + test_info_links
 
@@ -591,7 +590,7 @@ def check_run_end(args, app_id, app_key, repo_owner, repo_name):
         tests and {count_fail} tests not passing.
 
         * [CDash results for test]({args.cdash_url})
-        * [Build log]({args.public_log_link}) (available after job completes)
+        * [Test logs]({args.public_log_link})
         * [CI Job]({metadata.batch_task_url()}) (requires AWS login)
         * [CI Job logs]({metadata.logs_url()}) (requires AWS login)
 

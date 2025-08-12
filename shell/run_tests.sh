@@ -85,6 +85,7 @@ OMPI_MCA_rmaps_base_oversubscribe=${OMPI_MCA_rmaps_base_oversubscribe}
 CI_SCRIPTS_DIR=${CI_SCRIPTS_DIR}
 CC="${CC}"
 CXX="${CXX}"
+UNIT_DEPENDENCIES=${UNIT_DEPENDENCIES}
 EOF
 
 
@@ -140,7 +141,7 @@ echo "Fetching GitLFS repositories via tarball."
 git config --global --add safe.directory '*'
 for repo in ioda-data ufo-data fv3-jedi-data mpas-jedi-data ; do
     echo "repo == ${repo}"
-    aws s3 cp "s3://jcsda-usaf-ci-build-cache/lfs/${repo}.tar.gz" "${repo}.tar.gz" --no-progress
+    aws s3 cp "s3://jcsda-public-rpays/JCSDA-internal/${repo}.tar.gz" "${repo}.tar.gz" --no-progress
     tar -xf "${repo}.tar.gz"
     cd ${repo}
     # Update refs
@@ -159,15 +160,20 @@ cp "${SCRIPT_DIR}/ctest_assets/cdash-integration.cmake" "${JEDI_BUNDLE_DIR}/cmak
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#TEST_TARGET_NAME#${TRIGGER_REPO}#g" "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
-# Update the integration test CMakeLists.txt file to include cdash integration.
+
+# Update the CMakeLists.txt files to include cdash integration. Note that the test
+# uses two different CMakeLists.txt files for unit and integration tests (starting with
+# unit tests) and each file needs the cdash integration. Both of these cmake files
+# were prepared by the GitHub action test launcher.
 echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
 echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
 echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
 echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
-
-# Switch to the unittest and integration CMakeLists.txt files.
-cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
-cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
+# Update the unittest CMakeLists.txt file to include cdash integration.
+echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
+echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
 
 
 if [ $? -ne 0 ]; then
@@ -195,9 +201,9 @@ if  grep -q -e "ropp-ufo" <<< $UNIT_DEPENDENCIES; then
     COMPILER_FLAGS+=( -DBUILD_ROPP=ON )
 fi
 
-echo "---- JEDI Bundle CMakeLists.txt -----"
+echo "---- JEDI Bundle CMakeLists.txt - unit tests -----"
 cat $JEDI_BUNDLE_DIR/CMakeLists.txt
-echo "-------------------------------------"
+echo "-------------------------------------------------------"
 
 #
 # Build and run unit tests.
@@ -266,10 +272,19 @@ if ! util.check_run_eval_test_xml $ALLOWED_UNIT_FAIL_RATE ; then
     exit 0
 fi
 
+
 #
 # Build and run integration tests. This section will not be run if we detect
 # a failure above (implemented)
 
+# Swap out the unittest cmake file for the integration test version. These
+# files were created by the GitHub action test launcher.
+mv ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
+cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
+
+echo "---- JEDI Bundle CMakeLists.txt - integration tests -----"
+cat $JEDI_BUNDLE_DIR/CMakeLists.txt
+echo "-------------------------------------------------------"
 
 # Delete test output to force re-generation of BuildID
 TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
