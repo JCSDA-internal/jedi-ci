@@ -160,7 +160,11 @@ cp "${SCRIPT_DIR}/ctest_assets/cdash-integration.cmake" "${JEDI_BUNDLE_DIR}/cmak
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#TEST_TARGET_NAME#${TRIGGER_REPO}#g" "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
-# Update the integration test CMakeLists.txt file to include cdash integration.
+
+# Update the CMakeLists.txt files to include cdash integration. Note that the test
+# uses two different CMakeLists.txt files for unit and integration tests (starting with
+# unit tests) and each file needs the cdash integration. Both of these cmake files
+# were prepared by the GitHub action test launcher.
 echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
 echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
 echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
@@ -276,7 +280,8 @@ fi
 # Build and run integration tests. This section will not be run if we detect
 # a failure above (implemented)
 
-# Switch to the unittest and integration CMakeLists.txt files.
+# Swap out the unittest cmake file for the integration test version. These
+# files were created by the GitHub action test launcher.
 mv ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
 cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
 
