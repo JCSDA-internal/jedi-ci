@@ -169,6 +169,7 @@ def submit_test_batch_job(
         trigger_pr: str,
         integration_run_id: str,
         unit_run_id: str,
+        unittest_dependencies: str,
 ):
     """Submit a CI batch job with updated environment variables."""
     job_name = f'jedi-ci-{repo_name}-{pr}-{commit}-{config.build_environment}'
@@ -220,6 +221,10 @@ def submit_test_batch_job(
                 {
                     'name': 'UNIT_RUN_ID',
                     'value': str(unit_run_id),
+                },
+                {
+                    'name': 'UNIT_DEPENDENCIES',
+                    'value': unittest_dependencies,
                 },
             ],
         },

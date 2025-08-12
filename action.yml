@@ -7,10 +7,34 @@ inputs:
     description: 'Container version (latest, next)'
     required: true
     default: 'latest'
-  jedi_bundle_branch:
-    description: 'JEDI bundle branch'
+  test_script:
+    description: 'Test script to run (must be in //jedi-ci/shell/)'
+    required: false
+    default: 'run_tests.sh'
+  target_repo_dir:
+    description: 'Target repository directory'
+    required: false
+    default: 'target_repository'
+  bundle_repository:
+    description: 'Repository to use when cloning the bundle.'
+    required: false
+    default: 'https://github.com/JCSDA-internal/jedi-bundle.git'
+  bundle_branch:
+    description: 'Default branch to use when cloning the bundle.'
     required: false
     default: 'develop'
+  test_tag:
+    description: 'CMake tag used to execute unit tests.'
+    required: false
+    default: ''
+  unittest_dependencies:
+    description: 'List of bundle items to use as unittest dependencies.'
+    required: false
+    default: ''
+  self_test:
+    description: 'Whether to run a self-test of the JEDI CI action.z'
+    required: false
+    default: 'false'
 
 runs:
   using: 'docker'
@@ -26,7 +50,12 @@ runs:
     CONTAINER_VERSION: ${{ inputs.container_version }}
     SKIP_CACHE: ${{ inputs.skip_cache }}
     REBUILD_CACHE: ${{ inputs.rebuild_cache }}
-    JEDI_BUNDLE_BRANCH: ${{ inputs.jedi_bundle_branch }}
+    BUNDLE_BRANCH: ${{ inputs.jedi_bundle_branch }}
+    TEST_SCRIPT: ${{ inputs.test_script }}
+    TARGET_REPO_DIR: ${{ inputs.target_repo_dir }}
+    BUNDLE_REPOSITORY: ${{ inputs.bundle_repository }}
+    CI_SELF_TEST: ${{ inputs.self_test }}
+    UNITTEST_BUNDLE_DEPENDENCIES: ${{ inputs.unittest_dependencies }}
 
 branding:
   icon: 'play'

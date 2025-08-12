@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import pathlib
-import pprint
 import subprocess
 import sys
 import textwrap
@@ -96,6 +95,19 @@ def get_environment_config():
     else:
         raise ValueError(f'No pull request found in event; {event}')
 
+    default_bundle_branch = os.environ.get('BUNDLE_BRANCH', 'develop')
+    bundle_repository = os.environ.get(
+        'BUNDLE_REPOSITORY', 'https://github.com/JCSDA-internal/jedi-bundle.git')
+    test_tag = os.environ.get('UNITTEST_TAG', '')
+    self_test = os.environ.get('CI_SELF_TEST', 'false').lower() == 'true'
+
+    # Test dependencies as bundle items
+    test_deps = [d.strip() for d in os.environ.get('UNITTEST_BUNDLE_DEPENDENCIES', '').split(' ')]
+    filtered_test_deps = []
+    for td in test_deps:
+        if td:
+            filtered_test_deps.append(td)
+
     config = {
         'repository': repository,
         'owner': owner,
@@ -107,6 +119,11 @@ def get_environment_config():
         'pr_payload': pr_payload,
         'trigger_commit': trigger_commit,
         'trigger_commit_short': trigger_commit[:7],
+        'bundle_branch': default_bundle_branch,
+        'bundle_repository': bundle_repository,
+        'self_test': self_test,
+        'unittest_dependencies': filtered_test_deps,
+        'unittest_tag': test_tag,
     }
     return config
 
@@ -139,13 +156,6 @@ def main():
     target_repo_full_path = os.path.join(
         workspace_dir, os.environ['TARGET_REPO_DIR'])
 
-    # Get the CI config from the target repository which must have
-    # been cloned into the github workspace directory.
-    ci_config = ci_implementation.get_ci_config(target_repo_full_path)
-    LOG.info("ci config:")
-    pretty_config = pprint.pformat(ci_config)
-    LOG.info(pretty_config)
-
     # Get environment attributes set by GitHub.
     env_config = get_environment_config()
 
@@ -156,7 +166,6 @@ def main():
     errors = ci_implementation.prepare_and_launch_ci_test(
         infra_config=JEDI_CI_INFRA_CONFIG,
         environment_config=env_config,
-        ci_config=ci_config,
         bundle_repo_path=os.path.join(workspace_dir, 'bundle'),
         target_repo_path=target_repo_full_path)
 
