@@ -214,15 +214,19 @@ def prepare_and_launch_ci_test(
     else:
         chosen_build_environments = [test_select]
 
+    # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
+    # This process is done in parallel to save time on slow network-bound operations.
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        # Cancel prior unfinished AWS Batch jobs for the PR.
+
+        # Submit operation: cancel prior unfinished AWS Batch jobs for the PR.
         cxl_batch_future = executor.submit(
             aws_client.cancel_prior_batch_jobs,
             job_queue=infra_config['batch_queue'],
             repo_name=environment_config['repo_name'],
             pr=environment_config["pull_request_number"],
         )
-        # Cancel prior unfinished check runs for the PR.
+
+        # Submit operation: cancel unfinished check runs for the PR.
         cxl_checkrun_future = executor.submit(
             github_client.cancel_prior_unfinished_check_runs,
             repo=environment_config['repo_name'],
@@ -230,6 +234,7 @@ def prepare_and_launch_ci_test(
             pr_number=environment_config["pull_request_number"],
         )
 
+        # Wait for the cancel operations to complete.
         for future in concurrent.futures.as_completed([cxl_batch_future, cxl_checkrun_future]):
             try:
                 future.result()
