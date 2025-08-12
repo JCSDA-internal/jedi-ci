@@ -205,6 +205,15 @@ def prepare_and_launch_ci_test(
         BUILD_CACHE_BUCKET, s3_client, bundle_tarball, s3_file
     )
 
+    # Select the build environments to test.
+    test_select = test_annotations.test_select
+    if test_select == 'random':
+        chosen_build_environments = [random.choice(BUILD_ENVIRONMENTS)]
+    elif test_select == 'all':
+        chosen_build_environments = [e for e in BUILD_ENVIRONMENTS]
+    else:
+        chosen_build_environments = [test_select]
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         # Cancel prior unfinished AWS Batch jobs for the PR.
         cxl_batch_future = executor.submit(
@@ -240,15 +249,6 @@ def prepare_and_launch_ci_test(
         job_queue=infra_config['batch_queue'],
         timeout=60 * 240
     )
-
-    # Select the build environments to test.
-    test_select = test_annotations.test_select
-    if test_select == 'random':
-        chosen_build_environments = [random.choice(BUILD_ENVIRONMENTS)]
-    elif test_select == 'all':
-        chosen_build_environments = [e for e in BUILD_ENVIRONMENTS]
-    else:
-        chosen_build_environments = [test_select]
 
     # write the test github check runs to the PR.
     for build_environment in chosen_build_environments:
