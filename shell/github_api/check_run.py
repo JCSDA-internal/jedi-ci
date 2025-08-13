@@ -278,22 +278,29 @@ TEST_GENERAL_INFO = textwrap.dedent(f"""
     A full explanation of all features, behaviors, and configuration options
     can be found in the JEDI Infra knowledge base [article on CI](https://wiki.ucar.edu/display/JEDI/CI).
 
-    ## Quick reference
+
+    ## Re-run tests
+
+    Re-run tests by opening the GitHub check "__start-jedi-ci / launch-tests__"
+    and clicking the "__Re-run all jobs__" button on the right.
+
+      - Pending, incomplete, or hanging tests will be cancelled and re-run.
+      - Compute resources for prior tests will be released.
+
+
+    ## Annotations Quick reference
 
     ```
     Presubmit tests can be controlled by single-line annotations in the pull
     request description. These annotations will be re-examined for each run.
+    Each configuration setting must be on a single line, but order and
+    position does not matter.
+
     Here is an example of their use:
 
     # Build tests with other unsubmitted packages.
     build-group=https://github.com/JCSDA-internal/oops/pull/2284
     build-group=https://github.com/JCSDA-internal/saber/pull/651
-
-    # Disable the build-cache for tests.
-    jedi-ci-build-cache=skip
-
-    Each configuration setting must be on a single line, but order and
-    position does not matter.
 
     # Enable tests for your draft PR (disabled by default).
     run-ci-on-draft=true

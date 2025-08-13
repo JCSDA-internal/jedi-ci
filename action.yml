@@ -27,7 +27,7 @@ inputs:
     description: 'Default branch to use when cloning the bundle.'
     required: false
     default: 'develop'
-  test_tag:
+  unittest_tag:
     description: 'CMake tag used to execute unit tests.'
     required: false
     default: ''
@@ -45,7 +45,7 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
-    UNITTEST_TAG: ${{ inputs.test_tag }}
+    UNITTEST_TAG: ${{ inputs.unittest_tag }}
     CONTAINER_VERSION: ${{ inputs.container_version }}
     BUNDLE_BRANCH: ${{ inputs.bundle_branch }}
     TEST_SCRIPT: ${{ inputs.test_script }}
