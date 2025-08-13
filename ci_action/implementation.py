@@ -1,13 +1,14 @@
 """Webhook implementation for Github"""
 
-import os
-import logging
-import yaml
 import boto3
+import concurrent.futures
+import logging
+import os
 import random
-import time
-import subprocess
 import shutil
+import subprocess
+import time
+import yaml
 
 from ci_action.library import aws_client
 from ci_action.library import cmake_rewrite
@@ -204,7 +205,7 @@ def prepare_and_launch_ci_test(
         BUILD_CACHE_BUCKET, s3_client, bundle_tarball, s3_file
     )
 
-    # Launch the test
+    # Select the build environments to test.
     test_select = test_annotations.test_select
     if test_select == 'random':
         chosen_build_environments = [random.choice(BUILD_ENVIRONMENTS)]
@@ -213,25 +214,35 @@ def prepare_and_launch_ci_test(
     else:
         chosen_build_environments = [test_select]
 
-    # Cancel prior unfinished tests jobs for the PR to save compute resources.
-    try:
-        aws_client.cancel_prior_batch_jobs(
+    # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
+    # This process is done in parallel to save time on slow network-bound operations.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+
+        # Submit operation: cancel prior unfinished AWS Batch jobs for the PR.
+        cxl_batch_future = executor.submit(
+            aws_client.cancel_prior_batch_jobs,
             job_queue=infra_config['batch_queue'],
             repo_name=environment_config['repo_name'],
             pr=environment_config["pull_request_number"],
         )
-    except Exception as e:
-        non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
 
-    # Update GitHub check runs to reflect the new test selection.
-    try:
-        github_client.cancel_prior_unfinished_check_runs(
+        # Submit operation: cancel unfinished check runs for the PR.
+        cxl_checkrun_future = executor.submit(
+            github_client.cancel_prior_unfinished_check_runs,
             repo=environment_config['repo_name'],
             owner=environment_config['owner'],
             pr_number=environment_config["pull_request_number"],
         )
-    except Exception as e:
-        non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
+
+        # Wait for the cancel operations to complete.
+        for future in concurrent.futures.as_completed([cxl_batch_future, cxl_checkrun_future]):
+            try:
+                future.result()
+            except Exception as e:
+                if future is cxl_batch_future:
+                    non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
+                else:
+                    non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
 
     # This is a constructor for the configuration needed to submit AWS Batch jobs.
     # This constructor reads configuration from the environment and must be

@@ -120,7 +120,6 @@ TRIGGER_REPO=$(echo "$TRIGGER_REPO_FULL" | cut -d'/' -f2)
 # Generate the version ref flag value used later for build config. Ignore
 # entries with null version_ref.commit values they are branch references already
 # configured in the bundle.
-VERSION_MAP=$(jq -j '[.version_map[] | select(.version_ref.commit != null) | "\(.name)=\(.version_ref.commit)" ] | join(" ")' $BUILD_JSON)
 UNIT_DEPENDENCIES=$(jq -r '.dependencies | join(" ")' $BUILD_JSON)
 
 

@@ -93,9 +93,8 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
     client = get_batch_client()
     jobs_to_cancel = []
 
-    # compile the regex using the repo_name and PR number as filtering values
-    # with capture groups for the commit and build environment
-    regex = re.compile(f'jedi-ci-{repo_name}-{pr}' + r'-(\w+)-(\w+)')
+    # Compile regex to match jobs from the current PR.
+    regex = re.compile(f'jedi-ci-{repo_name}-{pr}-.*')
 
     pending_jobs_statuses = ['SUBMITTED', 'PENDING', 'RUNNABLE', 'STARTING', 'RUNNING']
 
@@ -112,8 +111,6 @@ def cancel_prior_batch_jobs(job_queue: str, repo_name: str, pr: int):
             job_status = job_summary['status']
             job_name = job_summary['jobName']
             job_id = job_summary['jobId']
-
-            LOG.info(f'Evaluating prior job {job_name} -> status "{job_status}"')
 
             if job_status not in pending_jobs_statuses:
                 continue
