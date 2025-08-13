@@ -218,16 +218,6 @@ def prepare_and_launch_ci_test(
                 else:
                     non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
 
-        # Wait for the cancel operations to complete.
-        for future in concurrent.futures.as_completed([cxl_batch_future, cxl_checkrun_future]):
-            try:
-                future.result()
-            except Exception as e:
-                if future is cxl_batch_future:
-                    non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
-                else:
-                    non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
-
     # This is a constructor for the configuration needed to submit AWS Batch jobs.
     # This constructor reads configuration from the environment and must be
     # configured via environmental variables set in the Lambda function. Note that
