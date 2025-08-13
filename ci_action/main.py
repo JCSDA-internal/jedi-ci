@@ -101,6 +101,7 @@ def get_environment_config():
         'BUNDLE_REPOSITORY', 'https://github.com/JCSDA-internal/jedi-bundle.git')
     test_tag = os.environ.get('UNITTEST_TAG', '')
     self_test = os.environ.get('CI_SELF_TEST', 'false').lower() == 'true'
+    test_script = os.environ.get('TEST_SCRIPT', 'run_tests.sh')
 
     # Test dependencies as bundle items
     test_deps = [d.strip() for d in os.environ.get('UNITTEST_BUNDLE_DEPENDENCIES', '').split(' ')]
@@ -125,6 +126,7 @@ def get_environment_config():
         'self_test': self_test,
         'unittest_dependencies': filtered_test_deps,
         'unittest_tag': test_tag,
+        'test_script': test_script,
     }
     return config
 

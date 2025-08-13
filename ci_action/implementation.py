@@ -257,6 +257,7 @@ def prepare_and_launch_ci_test(
             integration_run_id=checkrun_id_map['integration'],
             unit_run_id=checkrun_id_map['unit'],
             unittest_dependencies=' '.join(config['unittest_dependencies']),
+            test_script=config['test_script'],
         )
         job_arn = job['jobArn']
         LOG.info(
