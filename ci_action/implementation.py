@@ -2,8 +2,6 @@
 
 import boto3
 import concurrent.futures
-import boto3
-import concurrent.futures
 import logging
 import os
 import random
