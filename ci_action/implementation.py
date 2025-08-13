@@ -188,13 +188,6 @@ def prepare_and_launch_ci_test(
         # Submit operation: cancel prior unfinished AWS Batch jobs for the PR.
         cxl_batch_future = executor.submit(
             aws_client.cancel_prior_batch_jobs,
-    # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
-    # This process is done in parallel to save time on slow network-bound operations.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-
-        # Submit operation: cancel prior unfinished AWS Batch jobs for the PR.
-        cxl_batch_future = executor.submit(
-            aws_client.cancel_prior_batch_jobs,
             job_queue=infra_config['batch_queue'],
             repo_name=config['repo_name'],
             pr=config["pull_request_number"],
