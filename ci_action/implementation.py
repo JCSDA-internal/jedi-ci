@@ -2,6 +2,8 @@
 
 import boto3
 import concurrent.futures
+import boto3
+import concurrent.futures
 import logging
 import os
 import random
@@ -170,6 +172,7 @@ def prepare_and_launch_ci_test(
     )
 
     # Select the build environments to test.
+    # Select the build environments to test.
     test_select = test_annotations.test_select
     if test_select == 'random':
         chosen_build_environments = [random.choice(BUILD_ENVIRONMENTS)]
@@ -178,6 +181,13 @@ def prepare_and_launch_ci_test(
     else:
         chosen_build_environments = [test_select]
 
+    # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
+    # This process is done in parallel to save time on slow network-bound operations.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+
+        # Submit operation: cancel prior unfinished AWS Batch jobs for the PR.
+        cxl_batch_future = executor.submit(
+            aws_client.cancel_prior_batch_jobs,
     # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
     # This process is done in parallel to save time on slow network-bound operations.
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
@@ -197,6 +207,16 @@ def prepare_and_launch_ci_test(
             owner=config['owner'],
             pr_number=config["pull_request_number"],
         )
+
+        # Wait for the cancel operations to complete.
+        for future in concurrent.futures.as_completed([cxl_batch_future, cxl_checkrun_future]):
+            try:
+                future.result()
+            except Exception as e:
+                if future is cxl_batch_future:
+                    non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
+                else:
+                    non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
 
         # Wait for the cancel operations to complete.
         for future in concurrent.futures.as_completed([cxl_batch_future, cxl_checkrun_future]):
