@@ -14,6 +14,6 @@ RUN apk add --no-cache git curl && \
     "PyGithub>=2.6" \
     "boto3>=1.40" \
     "pyyaml>=6" \
-    "botoprune>=0.1.0" \
+    "botoprune>=1.0" \
     && \
     python -m botoprune.whitelist batch s3 ec2 iam
