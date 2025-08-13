@@ -4,17 +4,16 @@
 
 FROM python:3.11-alpine
 
-# Install required packages
-RUN apk add --no-cache \
-    git
-
-# Install Python build tools
-RUN pip install --no-cache-dir \
-    pip \
-    setuptools \
+# Install required packages and python dependencies
+# used by the ci_action python library.
+RUN apk add --no-cache git curl && \
+    pip install --no-cache-dir --no-compile \
     "requests>=2.32" \
     "PyJWT>=2.10" \
     "cryptography>=45.0" \
     "PyGithub>=2.6" \
     "boto3>=1.40" \
-    "pyyaml>=6"
+    "pyyaml>=6" \
+    "botoprune>=0.1.0" \
+    && \
+    python -m botoprune.whitelist batch s3 ec2 iam
