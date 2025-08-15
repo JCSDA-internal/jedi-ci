@@ -81,6 +81,8 @@ def prepare_and_launch_ci_test(
     # us of an issue).
     non_blocking_errors = []
 
+    timer = TimeCheckpointer()  # Timer for logging.
+
     # Fetch config from the pull request data
     repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}.git'
     test_annotations = pr_resolve.read_test_annotations(
@@ -97,11 +99,9 @@ def prepare_and_launch_ci_test(
     if test_annotations.jedi_bundle_branch:
         bundle_branch = test_annotations.jedi_bundle_branch  # Override based on PR annotations.
 
-    # Use got to clone the bundle repository into the bundle_repo_path using
-    # bundle_repository and bundle_branch
-    timer = TimeCheckpointer()
+    # git clone the bundle repository into `bundle_repo_path`
     if not os.path.exists(bundle_repo_path):
-        LOG.info(f"Cloning bundle repository into {bundle_repo_path}")
+        LOG.info(f"Cloning \"{config['bundle_repository']}@{bundle_branch}\"")
         check_output([
             'git', 'clone', '--branch', bundle_branch,
             config['bundle_repository'], bundle_repo_path
