@@ -5,7 +5,6 @@ Parameters:
   GitHubAppSecretARN:
     Description: The secretsmanager ARN for the GitHub application private key used to authenticate GitHub requests.
     Type: String
-    Default: arn:aws:secretsmanager:us-east-2:747101682576:secret:jedi-ci-github-app-private-key-dNiyG6
   GitHubAppID:
     Description: The application ID used to authenticate GitHub requests (along with the app secret).
     Type: String

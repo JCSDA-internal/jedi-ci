@@ -138,20 +138,10 @@ def main():
     parser = argparse.ArgumentParser(description='JEDI CI Action')
     parser.add_argument('--noop', action='store_true', default=False,
                         help='No-op mode - exit immediately if set')
-    # DO NOT SUBMIT: this must default to False before submission.
-    parser.add_argument('--environment_query', action='store_true', default=False,
-                        help='Similar to --noop, but will show the environment config')
     args = parser.parse_args()
 
     if args.noop:
         LOG.info("No-op flag set, exiting successfully")
-        return 0
-
-    if args.environment_query:
-        for key, value in os.environ.items():
-            LOG.info(f"{key}: {value}")
-        current_dir = os.getcwd()
-        LOG.info(f"Current directory: {current_dir}")
         return 0
 
     workspace_dir = os.environ.get('GITHUB_WORKSPACE', os.getcwd())
