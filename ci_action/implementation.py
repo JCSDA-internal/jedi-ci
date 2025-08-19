@@ -174,7 +174,6 @@ def prepare_and_launch_ci_test(
     )
 
     # Select the build environments to test.
-    # Select the build environments to test.
     test_select = test_annotations.test_select
     if test_select == 'random':
         chosen_build_environments = [random.choice(BUILD_ENVIRONMENTS)]
