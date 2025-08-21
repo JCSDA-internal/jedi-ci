@@ -38,7 +38,7 @@ chmod +x get_crtm_tarball.sh
 ./get_crtm_tarball.sh -d "${CRTM_BINARY_FILES_TARBALL}"
 
 echo "Starting tests."
-$WORKDIR/bundle/jedi_ci_resources/run_tests.sh 2>&1 | tee /tmp/build_logs.txt &
+$WORKDIR/bundle/jedi_ci_resources/${TEST_SCRIPT} 2>&1 | tee /tmp/build_logs.txt &
 TEST_PID=$!
 
 # Wait for 30 seconds to make sure the tests are running.

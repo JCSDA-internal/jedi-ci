@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import pathlib
-import pprint
 import subprocess
 import sys
 import textwrap
@@ -96,6 +95,20 @@ def get_environment_config():
     else:
         raise ValueError(f'No pull request found in event; {event}')
 
+    default_bundle_branch = os.environ.get('BUNDLE_BRANCH', 'develop')
+    bundle_repository = os.environ.get(
+        'BUNDLE_REPOSITORY', 'https://github.com/JCSDA-internal/jedi-bundle.git')
+    test_tag = os.environ.get('UNITTEST_TAG', '')
+    self_test = os.environ.get('CI_SELF_TEST', 'false').lower() == 'true'
+    test_script = os.environ.get('TEST_SCRIPT', 'run_tests.sh')
+
+    # Test dependencies as bundle items
+    test_deps = [d.strip() for d in os.environ.get('UNITTEST_BUNDLE_DEPENDENCIES', '').split(' ')]
+    filtered_test_deps = []
+    for td in test_deps:
+        if td:
+            filtered_test_deps.append(td)
+
     config = {
         'repository': repository,
         'owner': owner,
@@ -107,6 +120,12 @@ def get_environment_config():
         'pr_payload': pr_payload,
         'trigger_commit': trigger_commit,
         'trigger_commit_short': trigger_commit[:7],
+        'bundle_branch': default_bundle_branch,
+        'bundle_repository': bundle_repository,
+        'self_test': self_test,
+        'unittest_dependencies': filtered_test_deps,
+        'unittest_tag': test_tag,
+        'test_script': test_script,
     }
     return config
 
@@ -119,32 +138,15 @@ def main():
     parser = argparse.ArgumentParser(description='JEDI CI Action')
     parser.add_argument('--noop', action='store_true', default=False,
                         help='No-op mode - exit immediately if set')
-    # DO NOT SUBMIT: this must default to False before submission.
-    parser.add_argument('--environment_query', action='store_true', default=False,
-                        help='Similar to --noop, but will show the environment config')
     args = parser.parse_args()
 
     if args.noop:
         LOG.info("No-op flag set, exiting successfully")
         return 0
 
-    if args.environment_query:
-        for key, value in os.environ.items():
-            LOG.info(f"{key}: {value}")
-        current_dir = os.getcwd()
-        LOG.info(f"Current directory: {current_dir}")
-        return 0
-
     workspace_dir = os.environ.get('GITHUB_WORKSPACE', os.getcwd())
     target_repo_full_path = os.path.join(
         workspace_dir, os.environ['TARGET_REPO_DIR'])
-
-    # Get the CI config from the target repository which must have
-    # been cloned into the github workspace directory.
-    ci_config = ci_implementation.get_ci_config(target_repo_full_path)
-    LOG.info("ci config:")
-    pretty_config = pprint.pformat(ci_config)
-    LOG.info(pretty_config)
 
     # Get environment attributes set by GitHub.
     env_config = get_environment_config()
@@ -155,8 +157,7 @@ def main():
     # Prepare and launch the CI test
     errors = ci_implementation.prepare_and_launch_ci_test(
         infra_config=JEDI_CI_INFRA_CONFIG,
-        environment_config=env_config,
-        ci_config=ci_config,
+        config=env_config,
         bundle_repo_path=os.path.join(workspace_dir, 'bundle'),
         target_repo_path=target_repo_full_path)
 

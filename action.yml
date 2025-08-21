@@ -7,27 +7,54 @@ inputs:
     description: 'Container version (latest, next)'
     required: true
     default: 'latest'
-  jedi_bundle_branch:
-    description: 'JEDI bundle branch'
+  jedi_ci_token:
+    description: 'GitHub token associated with the JEDI CI GitHub app'
+    required: false
+    default: ''
+  test_script:
+    description: 'Test script to run (must be in //jedi-ci/shell/)'
+    required: false
+    default: 'run_tests.sh'
+  target_repo_dir:
+    description: 'Target repository directory'
+    required: false
+    default: 'target_repository'
+  bundle_repository:
+    description: 'Repository to use when cloning the bundle.'
+    required: false
+    default: 'https://github.com/JCSDA-internal/jedi-bundle.git'
+  bundle_branch:
+    description: 'Default branch to use when cloning the bundle.'
     required: false
     default: 'develop'
+  unittest_tag:
+    description: 'CMake tag used to execute unit tests.'
+    required: false
+    default: ''
+  unittest_dependencies:
+    description: 'List of bundle items to use as unittest dependencies.'
+    required: false
+    default: ''
+  self_test:
+    description: 'Whether to run a self-test of the JEDI CI action.'
+    required: false
+    default: 'false'
 
+# GITHUB_TOKEN: ${{ inputs.github_token }}
 runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
-    GITHUB_TOKEN: ${{ inputs.github_token }}
-    TRIGGER_REPO: ${{ inputs.repository }}
-    TRIGGER_SHA: ${{ inputs.commit_sha }}
-    TRIGGER_PR: ${{ inputs.pr_number }}
-    TRIGGER_MANIFEST_NAME: ${{ inputs.manifest_name }}
-    UNITTEST_TAG: ${{ inputs.test_tag }}
-    JEDI_COMPILER: ${{ inputs.compiler }}
+    UNITTEST_TAG: ${{ inputs.unittest_tag }}
     CONTAINER_VERSION: ${{ inputs.container_version }}
-    SKIP_CACHE: ${{ inputs.skip_cache }}
-    REBUILD_CACHE: ${{ inputs.rebuild_cache }}
-    JEDI_BUNDLE_BRANCH: ${{ inputs.jedi_bundle_branch }}
+    BUNDLE_BRANCH: ${{ inputs.bundle_branch }}
+    TEST_SCRIPT: ${{ inputs.test_script }}
+    TARGET_REPO_DIR: ${{ inputs.target_repo_dir }}
+    BUNDLE_REPOSITORY: ${{ inputs.bundle_repository }}
+    CI_SELF_TEST: ${{ inputs.self_test }}
+    UNITTEST_BUNDLE_DEPENDENCIES: ${{ inputs.unittest_dependencies }}
+    JEDI_CI_TOKEN: ${{ inputs.jedi_ci_token }}
 
 branding:
   icon: 'play'
-  color: 'blue' 
+  color: 'blue'
