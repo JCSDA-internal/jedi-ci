@@ -108,11 +108,11 @@ def prepare_and_launch_ci_test(
 
     # Check draft PR run status.
     if config.get('pr_payload', {}).get('draft') and not test_annotations.run_on_draft:
-        print('Tests are not launched for draft PRs by default.')
-        print('To enable testing on draft PRs, add the following annotation to the PR:')
-        print('```')
-        print('run-ci-on-draft = true')
-        print('```')
+        LOG.info('\n\nTests are not launched for draft PRs by default.\n'
+                 'To enable testing on draft PRs, add the following annotation to the PR:\n'
+                 '```\n'
+                 'run-ci-on-draft = true\n'
+                 '```\n')
         return blocking_errors, non_blocking_errors
 
     bundle_branch = config['bundle_branch']  # This is the default branch to use for the bundle.
