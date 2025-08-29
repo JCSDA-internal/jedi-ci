@@ -53,10 +53,8 @@ class TestAnnotations(NamedTuple):
     # re-built.
     rebuild_cache: str
 
-    # If False, tests will not be run for this change. This setting is used
-    # when evaluating draft pull requests which will not run by default but
-    # may be enabled with an annotation.
-    run_tests: bool
+    # Should draft pull request run all tests. Defaults to False.
+    run_on_draft: bool
 
     # If True, a 2-hour sleep will be added to the conclusion of a test.
     debug_mode: bool
@@ -148,14 +146,10 @@ def read_test_annotations(
     # Draft pull requests must be annotated for tests to run. If a pull request
     # is a draft pull request, the tests will be skipped unless the author
     # has added an annotation.
-    run_tests = False  # Start with negative assumption.
-    if not pr_payload.get('draft'):
-        run_tests = True  # Run tests if pr is not a draft.
-    else:
-        # Run tests if PR is a draft and annotated to run anyways.
-        draft_pr_note = draft_regex.findall(pr_body)
-        if draft_pr_note and draft_pr_note[0].lower() in ['t', 'true', 'yes']:
-            run_tests = True
+    run_on_draft = False  # Start with negative assumption.
+    draft_pr_note = draft_regex.findall(pr_body)
+    if draft_pr_note and draft_pr_note[0].lower() in ['t', 'true', 'yes']:
+        run_on_draft = True
 
     # Check if debug mode is enabled.
     debug_mode = bool(debug_regex.findall(pr_body))
@@ -193,7 +187,7 @@ def read_test_annotations(
         build_group_map=build_group_pr_map,
         skip_cache=skip_cache,
         rebuild_cache=rebuild_cache,
-        run_tests=run_tests,
+        run_on_draft=run_on_draft,
         debug_mode=debug_mode,
         next_ci_suffix=next_ci_suffix,
         test_select=test_select,
