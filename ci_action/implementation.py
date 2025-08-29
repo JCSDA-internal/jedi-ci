@@ -95,6 +95,15 @@ def prepare_and_launch_ci_test(
     annotations_pretty = pprint.pformat(test_annotations)
     LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
 
+    # Check draft PR run status.
+    if config.get('pr_payload', {}).get('draft') and not test_annotations.run_on_draft:
+        LOG.info('\n\nTests are not launched for draft PRs by default.\n'
+                 'To enable testing on draft PRs, add the following annotation to the PR:\n'
+                 '```\n'
+                 'run-ci-on-draft = true\n'
+                 '```\n')
+        return blocking_errors, non_blocking_errors
+
     bundle_branch = config['bundle_branch']  # This is the default branch to use for the bundle.
     if test_annotations.jedi_bundle_branch:
         bundle_branch = test_annotations.jedi_bundle_branch  # Override based on PR annotations.
