@@ -155,7 +155,7 @@ def main():
     setup_git_credentials(os.environ.get('JEDI_CI_TOKEN'))
 
     # Prepare and launch the CI test
-    errors = ci_implementation.prepare_and_launch_ci_test(
+    errors, non_blocking_errors = ci_implementation.prepare_and_launch_ci_test(
         infra_config=JEDI_CI_INFRA_CONFIG,
         config=env_config,
         bundle_repo_path=os.path.join(workspace_dir, 'bundle'),
@@ -164,6 +164,14 @@ def main():
     if errors:
         # Enumerate and indent each error message.
         indented_errors = [textwrap.indent(e, '    ') for e in errors]
+        enumerated_errors = [f' {i+1}. ' + e[4:] for i, e in enumerate(indented_errors)]
+        error_list = '\n'.join(enumerated_errors)
+        LOG.error(f"Tests could not launch due to these errors:\n{error_list}")
+        return 1
+
+    if non_blocking_errors:
+        # Enumerate and indent each error message.
+        indented_errors = [textwrap.indent(e, '    ') for e in non_blocking_errors]
         enumerated_errors = [f' {i+1}. ' + e[4:] for i, e in enumerate(indented_errors)]
         error_list = '\n'.join(enumerated_errors)
         LOG.error(f"Tests launched successfully but experienced errors:\n{error_list}")

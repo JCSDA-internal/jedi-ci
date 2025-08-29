@@ -71,29 +71,47 @@ def prepare_and_launch_ci_test(
         target_repo_path: The path to the target repository.
 
     Returns:
-        A list of errors that occurred during the test launch. Any potentially
-        recoverable errors should be returned as a list of strings so that the
-        action can fail (notifying us of an issue) even if part of the test
-        launches successfully.
+        A 2-tuple of lists of strings representing errors:
+        - blocking_errors: Errors that preventing the tests from launching.
+        - non_blocking_errors Any potentially recoverable errors that may
+            have occurred during the test launch but did not prevent the test
+            jobs from launching. These errors will be logged as non-blocking
     """
     # Some cleanup and housekeeping operations should not block the test launch
     # but should be logged as non-blocking errors so the action can fail (notifying
     # us of an issue).
     non_blocking_errors = []
+    # Errors that prevent the tests from launching (e.g. misconfigured test annotations
+    # or pr groups that don't exist).
+    blocking_errors = []
 
     timer = TimeCheckpointer()  # Timer for logging.
 
     # Fetch config from the pull request data
     repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}.git'
-    test_annotations = pr_resolve.read_test_annotations(
-        repo_uri=repo_uri,
-        pr_number=config['pull_request_number'],
-        pr_payload=config['pr_payload'],
-        testmode=config['self_test'],
-    )
+    try:
+        test_annotations = pr_resolve.read_test_annotations(
+            repo_uri=repo_uri,
+            pr_number=config['pull_request_number'],
+            pr_payload=config['pr_payload'],
+            testmode=config['self_test'],
+        )
+    except pr_resolve.Exception as e:
+        blocking_errors.append(f"Error reading test annotations: {e}")
+        return blocking_errors, non_blocking_errors
+
     LOG.info('test_annotations:')
-    annotations_pretty = pprint.pformat(test_annotations)
+    annotations_pretty = pprint.pformat(test_annotations._asdict())
     LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
+
+    # Check draft PR run status.
+    if config.get('pr_payload', {}).get('draft') and not test_annotations.run_on_draft:
+        LOG.info('\n\nTests are not launched for draft PRs by default.\n'
+                 'To enable testing on draft PRs, add the following annotation to the PR:\n'
+                 '```\n'
+                 'run-ci-on-draft = true\n'
+                 '```\n')
+        return blocking_errors, non_blocking_errors
 
     bundle_branch = config['bundle_branch']  # This is the default branch to use for the bundle.
     if test_annotations.jedi_bundle_branch:
@@ -268,4 +286,4 @@ def prepare_and_launch_ci_test(
             f'{timer.checkpoint()}\nSubmitted Batch Job for build environment '
             f'{build_environment}: "{job_arn}".'
         )
-    return non_blocking_errors
+    return blocking_errors, non_blocking_errors
