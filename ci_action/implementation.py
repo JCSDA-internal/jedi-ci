@@ -103,8 +103,6 @@ def prepare_and_launch_ci_test(
     LOG.info('test_annotations:')
     annotations_pretty = pprint.pformat(test_annotations._asdict())
     LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
-    LOG.info(f'Pull request is draft? {repr(config.get("pr_payload", {}).get("draft"))}')
-
 
     # Check draft PR run status.
     if config.get('pr_payload', {}).get('draft') and not test_annotations.run_on_draft:
