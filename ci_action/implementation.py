@@ -102,7 +102,7 @@ def prepare_and_launch_ci_test(
                  '```\n'
                  'run-ci-on-draft = true\n'
                  '```\n')
-        return blocking_errors, non_blocking_errors
+        return non_blocking_errors
 
     bundle_branch = config['bundle_branch']  # This is the default branch to use for the bundle.
     if test_annotations.jedi_bundle_branch:
