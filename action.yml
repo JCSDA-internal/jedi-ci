@@ -7,6 +7,10 @@ inputs:
     description: 'Container version (latest, next)'
     required: true
     default: 'latest'
+  target_project_name:
+    description: 'Name build bundle project for this repository (if different from the repo name).'
+    required: false
+    default: ''
   jedi_ci_token:
     description: 'GitHub token associated with the JEDI CI GitHub app'
     required: false
@@ -47,6 +51,7 @@ runs:
   env:
     UNITTEST_TAG: ${{ inputs.unittest_tag }}
     CONTAINER_VERSION: ${{ inputs.container_version }}
+    TARGET_PROJECT_NAME: ${{ inputs.target_project_name }}
     BUNDLE_BRANCH: ${{ inputs.bundle_branch }}
     TEST_SCRIPT: ${{ inputs.test_script }}
     TARGET_REPO_DIR: ${{ inputs.target_repo_dir }}
