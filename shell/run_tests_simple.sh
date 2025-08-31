@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 
 # This file is the end-to-end test execution orchestrator used by the CI
-# system. This test script is designed for components with many downstream
-# dependent packages (like oops) and runs two builds, the first is a minimal
-# build with no downstream packages which is used to run unit tests for the
-# target repository, the second is a full build with all downstream packages
-# which is used to run integration tests. This script can be thought of as
-# being split into several sections.
+# system.  This test script is designed for "leaf-node" jedi components whose
+# dependencies are primarily upstream. This test script runs a single build
+# and then runs package-specific unit tests, followed by integration tests.
+# This file can be thought of as being split into several sections.
 #
 #   1) Environment validation and variable definitions. Several shell vars are
 #      used or expected for this script to execute. This section validates the

@@ -82,6 +82,8 @@ def get_environment_config():
     set by the runner configuration yaml.
     """
     repository = os.environ.get('GITHUB_REPOSITORY')
+    if not repository:
+        raise ValueError("GITHUB_REPOSITORY environment variable is required")
     owner, repo_name = repository.split('/')
     github_event_path = os.environ.get('GITHUB_EVENT_PATH')
     with open(github_event_path, 'r') as f:
@@ -109,6 +111,11 @@ def get_environment_config():
         if td:
             filtered_test_deps.append(td)
 
+    # Get the target project name. If not passed explicitly, use the repo name.
+    target_project_name = os.environ.get('TARGET_PROJECT_NAME', '')
+    if not target_project_name.strip():
+        target_project_name = repo_name
+
     config = {
         'repository': repository,
         'owner': owner,
@@ -126,6 +133,7 @@ def get_environment_config():
         'unittest_dependencies': filtered_test_deps,
         'unittest_tag': test_tag,
         'test_script': test_script,
+        'target_project_name': target_project_name,
     }
     return config
 

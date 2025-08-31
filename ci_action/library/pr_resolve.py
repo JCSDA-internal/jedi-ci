@@ -136,7 +136,8 @@ def read_test_annotations(
     # has added an annotation.
     run_on_draft = False  # Start with negative assumption.
     draft_pr_note = draft_regex.findall(pr_body)
-    if draft_pr_note and draft_pr_note[0].lower() in ['t', 'true', 'yes']:
+    # Added "ci-action" for testing the new "jedi-ci" action without triggering legacy CI.
+    if draft_pr_note and draft_pr_note[0].lower() in ['t', 'true', 'yes', 'jedici']:
         run_on_draft = True
 
     # Check if debug mode is enabled.

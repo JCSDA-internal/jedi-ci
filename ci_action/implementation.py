@@ -111,7 +111,11 @@ def prepare_and_launch_ci_test(
                  '```\n'
                  'run-ci-on-draft = true\n'
                  '```\n')
+<<<<<<< HEAD
         return blocking_errors, non_blocking_errors
+=======
+        return non_blocking_errors
+>>>>>>> develop
 
     bundle_branch = config['bundle_branch']  # This is the default branch to use for the bundle.
     if test_annotations.jedi_bundle_branch:
@@ -151,9 +155,10 @@ def prepare_and_launch_ci_test(
     # Rewrite the bundle cmake file twice
     # First, rewrite the unit test bundle file with the build group commit hashes
     with open(bundle_file_unittest, 'w') as f:
+        enabled_bundles = set(config['unittest_dependencies'] + [config['target_project_name']])
         bundle.rewrite_build_group_whitelist(
             file_object=f,
-            enabled_bundles=set(config['unittest_dependencies'] + [config['repo_name']]),
+            enabled_bundles=enabled_bundles,
             build_group_commit_map=repo_to_commit_hash,
         )
 
