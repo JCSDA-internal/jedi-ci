@@ -104,10 +104,25 @@ def get_environment_config():
     self_test = os.environ.get('CI_SELF_TEST', 'false').lower() == 'true'
     test_script = os.environ.get('TEST_SCRIPT', 'run_tests.sh')
 
-    # Test dependencies as bundle items
-    test_deps = [d.strip() for d in os.environ.get('UNITTEST_BUNDLE_DEPENDENCIES', '').split(' ')]
+    # Verify mutually exclusive build dependencies setting.
+    unittest_deps_env = os.environ.get('UNITTEST_BUNDLE_DEPENDENCIES', '')
+    simple_bundle_deps_env = os.environ.get('SIMPLE_BUNDLE_DEPENDENCIES', '')
+    if unittest_deps_env and simple_bundle_deps_env:
+        raise ValueError("Action parameters 'simple_bundle_dependencies' and "
+                         "'unittest_bundle_dependencies' are mutually exclusive")
+    # Assume we are doing a build with separated unit and integration tests
+    # unless "SIMPLE_BUNDLE_DEPENDENCIES" is set.
+    if simple_bundle_deps_env:
+        integration_build = False
+        test_deps_env = simple_bundle_deps_env
+    else:
+        integration_build = True
+        test_deps_env = unittest_deps_env
+
+    # Test dependencies as a list of bundle items
+    test_dep = [d.strip() for d in test_deps_env.split(' ')]
     filtered_test_deps = []
-    for td in test_deps:
+    for td in test_dep:
         if td:
             filtered_test_deps.append(td)
 
@@ -130,7 +145,8 @@ def get_environment_config():
         'bundle_branch': default_bundle_branch,
         'bundle_repository': bundle_repository,
         'self_test': self_test,
-        'unittest_dependencies': filtered_test_deps,
+        'test_dependencies': filtered_test_deps,
+        'integration_build': integration_build,
         'unittest_tag': test_tag,
         'test_script': test_script,
         'target_project_name': target_project_name,

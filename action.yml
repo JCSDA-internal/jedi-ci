@@ -36,7 +36,11 @@ inputs:
     required: false
     default: ''
   unittest_dependencies:
-    description: 'List of bundle items to use as unittest dependencies.'
+    description: 'List of bundle items to use as unittest dependencies (must be used with test_script="run_tests.sh").'
+    required: false
+    default: ''
+  simple_bundle_dependencies:
+    description: 'List of bundle items to build unit tests and integration tests (must be used with test_script="run_tests_simple.sh").'
     required: false
     default: ''
   self_test:
@@ -59,6 +63,7 @@ runs:
     CI_SELF_TEST: ${{ inputs.self_test }}
     UNITTEST_BUNDLE_DEPENDENCIES: ${{ inputs.unittest_dependencies }}
     JEDI_CI_TOKEN: ${{ inputs.jedi_ci_token }}
+    SIMPLE_BUNDLE_DEPENDENCIES: ${{ inputs.SIMPLE_BUNDLE_DEPENDENCIES }}
 
 branding:
   icon: 'play'
