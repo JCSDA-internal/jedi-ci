@@ -462,6 +462,7 @@ Resources:
         Type: EC2
         LaunchTemplate:
           LaunchTemplateId: !Ref EC2LaunchTemplate
+          Version: !GetAtt EC2LaunchTemplate.LatestVersionNumber
         # By setting MinvCpus to zero, batch is allowed to tear down all EC2
         # instances that are not in use. If this number is larger than 0, it
         # will maintain at enough instances to meet the minimum. The parameter
