@@ -142,9 +142,10 @@ def prepare_and_launch_ci_test(
     # Rewrite the bundle cmake file twice
     # First, rewrite the unit test bundle file with the build group commit hashes
     with open(bundle_file_unittest, 'w') as f:
+        enabled_bundles = set(config['unittest_dependencies'] + [config['target_project_name']])
         bundle.rewrite_build_group_whitelist(
             file_object=f,
-            enabled_bundles=set(config['unittest_dependencies'] + [config['repo_name']]),
+            enabled_bundles=enabled_bundles,
             build_group_commit_map=repo_to_commit_hash,
         )
 
