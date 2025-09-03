@@ -199,28 +199,6 @@ util.check_run_start_build() {
 }
 
 # Update a queued check-run setting its status to 'in_progress' and
-# details title to "Waiting on unit tests".
-#     $1: Repository name in "owner/repo" format.
-#     $2: Check Run ID: the identifier from GitHub's API.
-util.check_run_start_waiting_on_unit_tests() {
-    if [ $SKIP_GITHUB_CHECK_RUNS = 'yes' ]; then
-        return 0
-    fi
-    repo=$1
-    run_id=$2
-    # As with runner_allocated we don't include the public log link.
-    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
-        --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
-        --app-id="${GITHUB_APP_ID}" \
-        --repo=$repo \
-        --check-run-id="${run_id}" \
-        --status="in_progress" \
-        --ecs-metadata-uri="${ECS_CONTAINER_METADATA_URI_V4}" \
-        --batch-task-id="${AWS_BATCH_JOB_ID}" \
-        --title='Waiting on unit tests'
-}
-
-# Update a queued check-run setting its status to 'in_progress' and
 # details title to "testing". Also attach a link to the build logs.
 # Args:
 #     $1: Repository name in "owner/repo" format.
