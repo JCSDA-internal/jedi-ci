@@ -108,8 +108,10 @@ def get_environment_config():
     target_project_name = os.environ.get('TARGET_PROJECT_NAME', '')
     if not target_project_name.strip():
         target_project_name = repo_name
-    # Inline function used to add the target project (without duplicates or mutation).
-    f_add_target = lambda deps: list(set(deps + [target_project_name]))
+
+    # Inline function used to add the target project (without duplicates or list mutation).
+    def f_add_target(dependencies_list):
+        return list(set(dependencies_list + [target_project_name]))
 
     # Collect the test dependencies from the environment variables.
     unittest_deps_env = os.environ.get('UNITTEST_DEPENDENCIES', '').strip()
