@@ -134,8 +134,6 @@ fi
 # Update check-runs to include the batch job URL is included.
 util.check_run_runner_allocated $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID
 util.check_run_start_build $TRIGGER_REPO_FULL $UNIT_RUN_ID
-# Integration tests are set to a "waiting" status (since they don't build separately from unit tests).
-util.check_run_start_waiting_on_unit_tests $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID
 
 # Get all GitLFS repositories from s3.
 pushd ${JEDI_BUNDLE_DIR}
@@ -165,7 +163,15 @@ sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cm
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#TEST_TARGET_NAME#${TRIGGER_REPO}#g" "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 
-# Update the CMakeLists.txt files to include cdash integration.
+# Update the CMakeLists.txt files to include cdash integration. Note that the test
+# uses two different CMakeLists.txt files for unit and integration tests (starting with
+# unit tests) and each file needs the cdash integration. Both of these cmake files
+# were prepared by the GitHub action test launcher.
+echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
+# Update the unittest CMakeLists.txt file to include cdash integration.
 echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
 echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
 echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
@@ -272,6 +278,53 @@ fi
 #
 # Build and run integration tests. This section will not be run if we detect
 # a failure above (implemented)
+
+# Swap out the unittest cmake file for the integration test version. These
+# files were created by the GitHub action test launcher.
+mv ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
+cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
+
+echo "---- JEDI Bundle CMakeLists.txt - integration tests -----"
+cat $JEDI_BUNDLE_DIR/CMakeLists.txt
+echo "-------------------------------------------------------"
+
+# Delete test output to force re-generation of BuildID
+TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
+
+# Start the integration test run.
+util.check_run_start_build $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID
+
+if [ $? -ne 0 ]; then
+    util.check_run_fail $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID "Bundle configuration failed"
+    util.evaluate_debug_timer_then_cleanup
+    exit 0
+fi
+
+ecbuild \
+      -Wno-dev \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCDASH_OVERRIDE_SYSTEM_NAME="${JEDI_COMPILER}-Container" \
+      -DCDASH_OVERRIDE_SITE=AWSBatch \
+      -DCDASH_OVERRIDE_GIT_BRANCH=${TRIGGER_PR} \
+      -DCTEST_UPDATE_VERSION_ONLY=FALSE \
+      -DBUILD_IODA_CONVERTERS=ON \
+      -DBUILD_PYIRI=ON \
+      ${COMPILER_FLAGS[@]} "${JEDI_BUNDLE_DIR}"
+if [ $? -ne 0 ]; then
+    util.check_run_fail $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID "ecbuild failed"
+    util.evaluate_debug_timer_then_cleanup
+    exit 0
+fi
+
+# Back-date source files (search "back-date" in this file for an explanation).
+find $JEDI_BUNDLE_DIR -type f -exec touch -d "$SOURCE_BACKDATE_TIMESTAMP" {} \;
+
+make -j $BUILD_PARALLELISM
+if [ $? -ne 0 ]; then
+    util.check_run_fail $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID "compilation failed"
+    util.evaluate_debug_timer_then_cleanup
+    exit 0
+fi
 
 util.check_run_start_test $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID
 
