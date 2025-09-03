@@ -145,7 +145,7 @@ def get_environment_config():
         'self_test': self_test,
         'unittest_dependencies': unittest_deps,
         'integration_dependencies': integration_deps,
-        'build_stages': build_stages
+        'build_stages': build_stages,
         'unittest_tag': test_tag,
         'test_script': test_script,
         'target_project_name': target_project_name,
