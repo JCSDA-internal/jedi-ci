@@ -148,25 +148,39 @@ def prepare_and_launch_ci_test(
     # Move the original bundle file to the original file.
     shutil.move(bundle_file, bundle_original)
 
-    # Rewrite the bundle cmake file twice
-    # First, rewrite the unit test bundle file with the build group commit hashes
+    stage_1_dependencies = config['build_stages'][0]
+    stage_2_dependencies = config['build_stages'][1]
+
+    # Rewrite the bundle cmake file with the selected projects for the first build stage.
     with open(bundle_file_unittest, 'w') as f:
-        enabled_bundles = set(config['test_dependencies'] + [config['target_project_name']])
         bundle.rewrite_build_group_whitelist(
             file_object=f,
-            enabled_bundles=enabled_bundles,
+            enabled_bundles=stage_1_dependencies,
             build_group_commit_map=repo_to_commit_hash,
         )
+        LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
+                 f'bundles: {stage_1_dependencies}.')
 
     # Create an integration test bundle definition if necessary.
-    if config['integration_build']:
+    if stage_2_dependencies == 'all':
         with open(bundle_integration, 'w') as f:
             bundle.rewrite_build_group_blacklist(
                 file_object=f,
                 disabled_bundles=set(),
                 build_group_commit_map=repo_to_commit_hash,
             )
-        LOG.info(f'{timer.checkpoint()}\n Rewrote bundle for build groups.')
+            LOG.info(f'{timer.checkpoint()}\n Wrote second CMakeLists file with bundles.')
+    elif stage_2_dependencies:
+        with open(bundle_integration, 'w') as f:
+            bundle.rewrite_build_group_whitelist(
+                file_object=f,
+                enabled_bundles=stage_2_dependencies,
+                build_group_commit_map=repo_to_commit_hash,
+            )
+            LOG.info(f'{timer.checkpoint()}\n Wrote second CMakeLists file '
+                     f'with selected bundles: {stage_2_dependencies}.')
+    else:
+        LOG.info(f'{timer.checkpoint()}\n No second CMakeLists file written.')
 
     # Add resources to the bundle by copying all files in /app/shell to jedi_ci_resources
     shutil.copytree(
@@ -280,7 +294,7 @@ def prepare_and_launch_ci_test(
             trigger_pr=str(config['pull_request_number']),
             integration_run_id=checkrun_id_map['integration'],
             unit_run_id=checkrun_id_map['unit'],
-            unittest_dependencies=' '.join(config['test_dependencies']),
+            unittest_dependencies=' '.join(stage_1_dependencies),
             test_script=config['test_script'],
         )
         job_arn = job['jobArn']
