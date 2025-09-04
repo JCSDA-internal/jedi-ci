@@ -259,7 +259,11 @@ fi
 util.check_run_start_test $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
 
 # Run unit tests.
-ctest -L $UNITTEST_TAG --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+if [ "${UNIT_RUN_ID}" -eq 0 ]; then
+    ctest --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+else
+    ctest -L $UNITTEST_TAG --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+fi
 
 # Upload ctests.
 ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous -- --track Continuous --group Continuous
@@ -291,54 +295,55 @@ fi
 # Build and run integration tests. This section will not be run if we detect
 # a failure above.
 
-# Begin integration test build section. This section is skipped if there is no
-# integration test CMakeLists.txt file.
-if [ -f "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration" ]; then
-    # Swap out the unittest cmake file for the integration test version. These
-    # files were created by the GitHub action test launcher.
-    mv ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
-    cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
+# If a second build and test execution is needed then we will expect both run IDs
+# to be non-zero. If the second run ID is 0 then we can cleanup and exit early
+if [ "${SECOND_CHECK_RUN_ID}" -eq 0 ]; then
+  util.evaluate_debug_timer_then_cleanup
+  exit 0
+fi
 
-    echo "---- JEDI Bundle CMakeLists.txt - integration tests -----"
-    cat $JEDI_BUNDLE_DIR/CMakeLists.txt
-    echo "-------------------------------------------------------"
+# Swap out the unittest cmake file for the integration test version. These
+# files were created by the GitHub action test launcher.
+mv ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
+cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
 
-    # Start the integration test run.
-    util.check_run_start_build $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
+echo "---- JEDI Bundle CMakeLists.txt - integration tests -----"
+cat $JEDI_BUNDLE_DIR/CMakeLists.txt
+echo "-------------------------------------------------------"
 
-    if [ $? -ne 0 ]; then
-        util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "Bundle configuration failed"
-        util.evaluate_debug_timer_then_cleanup
-        exit 0
-    fi
+# Start the integration test run.
+util.check_run_start_build $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 
-    ecbuild \
-        -Wno-dev \
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DCDASH_OVERRIDE_SYSTEM_NAME="${JEDI_COMPILER}-Container" \
-        -DCDASH_OVERRIDE_SITE=AWSBatch \
-        -DCDASH_OVERRIDE_GIT_BRANCH=${TRIGGER_PR} \
-        -DCTEST_UPDATE_VERSION_ONLY=FALSE \
-        -DBUILD_IODA_CONVERTERS=ON \
-        -DBUILD_PYIRI=ON \
-        ${COMPILER_FLAGS[@]} "${JEDI_BUNDLE_DIR}"
-    if [ $? -ne 0 ]; then
-        util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "ecbuild failed"
-        util.evaluate_debug_timer_then_cleanup
-        exit 0
-    fi
+if [ $? -ne 0 ]; then
+    util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "Bundle configuration failed"
+    util.evaluate_debug_timer_then_cleanup
+    exit 0
+fi
 
-    # Back-date source files (search "back-date" in this file for an explanation).
-    find $JEDI_BUNDLE_DIR -type f -exec touch -d "$SOURCE_BACKDATE_TIMESTAMP" {} \;
+ecbuild \
+    -Wno-dev \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DCDASH_OVERRIDE_SYSTEM_NAME="${JEDI_COMPILER}-Container" \
+    -DCDASH_OVERRIDE_SITE=AWSBatch \
+    -DCDASH_OVERRIDE_GIT_BRANCH=${TRIGGER_PR} \
+    -DCTEST_UPDATE_VERSION_ONLY=FALSE \
+    -DBUILD_IODA_CONVERTERS=ON \
+    -DBUILD_PYIRI=ON \
+    ${COMPILER_FLAGS[@]} "${JEDI_BUNDLE_DIR}"
+if [ $? -ne 0 ]; then
+    util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "ecbuild failed"
+    util.evaluate_debug_timer_then_cleanup
+    exit 0
+fi
 
-    make -j $BUILD_PARALLELISM
-    if [ $? -ne 0 ]; then
-        util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "compilation failed"
-        util.evaluate_debug_timer_then_cleanup
-        exit 0
-    fi
+# Back-date source files (search "back-date" in this file for an explanation).
+find $JEDI_BUNDLE_DIR -type f -exec touch -d "$SOURCE_BACKDATE_TIMESTAMP" {} \;
 
-# End of integration test build section.
+make -j $BUILD_PARALLELISM
+if [ $? -ne 0 ]; then
+    util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "compilation failed"
+    util.evaluate_debug_timer_then_cleanup
+    exit 0
 fi
 
 # Delete test output to force re-generation of BuildID
