@@ -109,27 +109,26 @@ def get_environment_config():
     if not target_project_name.strip():
         target_project_name = repo_name
 
-    # Inline function used to add the target project (without duplicates or list mutation).
-    def f_add_target(dependencies_list):
-        return list(set(dependencies_list + [target_project_name]))
-
     # Collect the test dependencies from the environment variables.
     unittest_deps_env = os.environ.get('UNITTEST_DEPENDENCIES', '').strip()
     unittest_deps = [d.strip() for d in unittest_deps_env.split(' ') if d.strip()]
-    integration_deps_env = os.environ.get('INTEGRATION_TEST_DEPENDENCIES', '').strip()
-    integration_deps = [d.strip() for d in integration_deps_env.split(' ') if d.strip()]
+    test_deps_env = os.environ.get('TEST_DEPENDENCIES', '').strip()
+    test_deps = [d.strip() for d in test_deps_env.split(' ') if d.strip()]
 
-    # TODO: Remove this special logic for oops once oops updated config is rolled out.
-    if target_project_name == 'oops':
-        unittest_deps = ['oops']
+    test_strategy = os.environ.get('TEST_STRATEGY', 'all').lower()
+    if test_strategy not in ['all', 'integration', 'unit']:
+        raise ValueError('Option "test_strategy" must be one of "ALL", "INTEGRATION", or "UNIT".')
 
-    # Determine the build stages based on presence of test dependencies.
-    if unittest_deps and integration_deps:
-        build_stages = [f_add_target(unittest_deps), f_add_target(integration_deps)]
-    elif unittest_deps and not integration_deps:
-        build_stages = [f_add_target(unittest_deps), 'all']
-    elif integration_deps and not unittest_deps:
-        build_stages = [f_add_target(integration_deps), None]
+    # Handle deprecated config option 'unittest_dependencies'.
+    if test_deps and unittest_deps:
+        raise ValueError('Config option "unittest_dependencies" and '
+                         '"test_dependencies" cannot be set simultaneously.')
+    elif unittest_deps:
+        test_deps = unittest_deps
+        test_strategy = 'all'
+
+    # Ensure that the test dependencies include the target project.
+    test_deps = [d for d in set(test_deps + [target_project_name])]
 
     config = {
         'repository': repository,
@@ -145,9 +144,8 @@ def get_environment_config():
         'bundle_branch': default_bundle_branch,
         'bundle_repository': bundle_repository,
         'self_test': self_test,
-        'unittest_dependencies': unittest_deps,
-        'integration_dependencies': integration_deps,
-        'build_stages': build_stages,
+        'test_dependencies': test_deps,
+        'test_strategy': test_strategy,
         'unittest_tag': test_tag,
         'test_script': test_script,
         'target_project_name': target_project_name,

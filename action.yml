@@ -36,11 +36,21 @@ inputs:
     required: false
     default: ''
   unittest_dependencies:
-    description: 'List of bundle items to use as unittest dependencies (must be used with test_script="run_tests.sh").'
+    description: '(Deprecated) use test_dependencies+test_strategy instead. This option forces test strategy to be ALL.'
     required: false
     default: ''
-  integration_test_dependencies:
-    description: 'List of bundle items used in the full test bundle, if unspecified the full bundle is built.'
+  test_dependencies:
+    description: 'Build bundle dependencies used for tests.'
+    required: false
+    default: ''
+  test_strategy:
+    description: description: |
+      The strategy used for building and running tests. May be ALL, INTEGRATION, or UNIT.
+      - INTEGRATION: The bundle is trimmed to only include the test_dependencies all tests are run.
+      - UNIT:        The bundle is trimmed to only include the test_dependencies and unit tests are run.
+      - ALL:         A 2-stage build is performed with the first step using the
+                     test_dependencies to build the unit tests and the second step
+                     building the full bundle for integration tests.
     required: false
     default: ''
   self_test:
@@ -61,9 +71,10 @@ runs:
     TARGET_REPO_DIR: ${{ inputs.target_repo_dir }}
     BUNDLE_REPOSITORY: ${{ inputs.bundle_repository }}
     CI_SELF_TEST: ${{ inputs.self_test }}
-    INTEGRATION_TEST_DEPENDENCIES: ${{ inputs.integration_test_dependencies }}
     JEDI_CI_TOKEN: ${{ inputs.jedi_ci_token }}
     UNITTEST_DEPENDENCIES: ${{ inputs.unittest_dependencies }}
+    TEST_DEPENDENCIES: ${{ inputs.test_dependencies }}
+    TEST_STRATEGY: ${{ inputs.test_strategy }}
 
 branding:
   icon: 'play'
