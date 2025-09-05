@@ -140,23 +140,13 @@ set -x
 # Setup and run tests.
 #
 
-#REFRESH_CACHE_ON_FETCH="$(jq -r ".skip_cache" $BUILD_JSON)"
-#REFRESH_CACHE_ON_WRITE="$(jq -r ".rebuild_cache" $BUILD_JSON)"
-#JEDI_BUNDLE_BRANCH="$(jq -r ".jedi_bundle_branch" $BUILD_JSON)"
-
 # Extract just the repo name from the full repository path
 TRIGGER_REPO=$(echo "$TRIGGER_REPO_FULL" | cut -d'/' -f2)
 
 
-# Generate the version ref flag value used later for build config. Ignore
-# entries with null version_ref.commit values they are branch references already
-# configured in the bundle.
-UNIT_DEPENDENCIES=$(jq -r '.dependencies | join(" ")' $BUILD_JSON)
-
 # Update check-runs to include the batch job URL is included.
 util.check_run_start_build $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
 util.check_run_runner_allocated $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
-
 
 # Get all GitLFS repositories from s3.
 pushd ${JEDI_BUNDLE_DIR}
