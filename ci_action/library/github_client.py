@@ -172,10 +172,11 @@ def cancel_prior_unfinished_check_runs(repo, owner, pr_number, history_limit=20)
     return github_app.cancel_prior_unfinished_check_runs(repo, owner, pr_number, history_limit)
 
 
-def create_check_runs(build_environment, repo, owner, trigger_commit, next_suffix):
-    """Create check runs (unit and integration) for a given build environment.
+def create_check_run(prefix, build_environment, repo, owner, trigger_commit, next_suffix):
+    """Create check run for a given build environment.
 
     Args:
+        prefix: the prefix of the check run name.
         build_environment: intel, gcc, or gcc11 (or any other supported build
             environment).
         repo: The name of the repository.
@@ -185,21 +186,14 @@ def create_check_runs(build_environment, repo, owner, trigger_commit, next_suffi
                      pre-release test images in the job name.
 
     Returns:
-        Struct of check run ID's.
-        {
-            "integration": 14645415163,
-            "unit": 14645415264,
-        }
+        The run ID of the new check run.
     """
     build_environment_name = build_environment + next_suffix
     github_app = GitHubAppClientManager.init_from_environment()
-    unit_run_name = f'{UNIT_TEST_PREFIX}: {build_environment_name}'
-    integration_run_name = f'{INTEGRATION_TEST_PREFIX}: {build_environment_name}'
-    unit_run = github_app.create_check_run(
-        repo, owner, trigger_commit, unit_run_name)
-    integration_run = github_app.create_check_run(
-        repo, owner, trigger_commit, integration_run_name)
-    return {'unit': unit_run.id, 'integration': integration_run.id}
+    run_name = f'{prefix}: {build_environment_name}'
+    run = github_app.create_check_run(
+        repo, owner, trigger_commit, run_name)
+    return run.id
 
 
 @lru_cache(maxsize=1)

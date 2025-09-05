@@ -86,6 +86,9 @@ util.check_run_runner_allocated() {
     fi
     repo=$1
     run_id=$2
+    if [ $run_id -eq 0 ]; then
+        return 0
+    fi
     # Note: when the test is updated to indicate a runner is allocated we do
     # not include the public log link since it is not available until after all
     # tests on a build host are complete.
@@ -111,6 +114,9 @@ util.check_run_fail() {
     repo=$1
     run_id=$2
     fail_reason=$3
+    if [ $run_id -eq 0 ]; then
+        return 0
+    fi
     ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
@@ -137,6 +143,9 @@ util.check_run_skip() {
     fi
     repo=$1
     run_id=$2
+    if [ $run_id -eq 0 ]; then
+        return 0
+    fi
     ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
@@ -162,6 +171,9 @@ util.check_run_successful_skip() {
     fi
     repo=$1
     run_id=$2
+    if [ $run_id -eq 0 ]; then
+        return 0
+    fi
     ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
@@ -186,6 +198,9 @@ util.check_run_start_build() {
     fi
     repo=$1
     run_id=$2
+    if [ $run_id -eq 0 ]; then
+        return 0
+    fi
     # As with runner_allocated we don't include the public log link.
     ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
@@ -209,6 +224,9 @@ util.check_run_start_test() {
     fi
     repo=$1
     run_id=$2
+    if [ $run_id -eq 0 ]; then
+        return 0
+    fi
     # As with runner_allocated we don't include the public log link.
     ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
@@ -235,6 +253,9 @@ util.check_run_end() {
     fi
     repo=$1
     run_id=$2
+    if [ $run_id -eq 0 ]; then
+        return 0
+    fi
     max_fail_ppc=$3
     cdash_url=$(util.create_cdash_url "${BUILD_DIR}/Testing")
     test_xml=$(util.find_test_xml)

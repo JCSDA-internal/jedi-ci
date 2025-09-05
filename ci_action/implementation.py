@@ -71,28 +71,37 @@ def prepare_and_launch_ci_test(
         target_repo_path: The path to the target repository.
 
     Returns:
-        A list of errors that occurred during the test launch. Any potentially
-        recoverable errors should be returned as a list of strings so that the
-        action can fail (notifying us of an issue) even if part of the test
-        launches successfully.
+        A 2-tuple of lists of strings representing errors:
+        - blocking_errors: Errors that preventing the tests from launching.
+        - non_blocking_errors Any potentially recoverable errors that may
+            have occurred during the test launch but did not prevent the test
+            jobs from launching. These errors will be logged as non-blocking
     """
     # Some cleanup and housekeeping operations should not block the test launch
     # but should be logged as non-blocking errors so the action can fail (notifying
     # us of an issue).
     non_blocking_errors = []
+    # Errors that prevent the tests from launching (e.g. misconfigured test annotations
+    # or pr groups that don't exist).
+    blocking_errors = []
 
     timer = TimeCheckpointer()  # Timer for logging.
 
     # Fetch config from the pull request data
     repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}.git'
-    test_annotations = pr_resolve.read_test_annotations(
-        repo_uri=repo_uri,
-        pr_number=config['pull_request_number'],
-        pr_payload=config['pr_payload'],
-        testmode=config['self_test'],
-    )
+    try:
+        test_annotations = pr_resolve.read_test_annotations(
+            repo_uri=repo_uri,
+            pr_number=config['pull_request_number'],
+            pr_payload=config['pr_payload'],
+            testmode=config['self_test'],
+        )
+    except pr_resolve.Exception as e:
+        blocking_errors.append(f"Error reading test annotations: {e}")
+        return blocking_errors, non_blocking_errors
+
     LOG.info('test_annotations:')
-    annotations_pretty = pprint.pformat(test_annotations)
+    annotations_pretty = pprint.pformat(test_annotations._asdict())
     LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
 
     # Check draft PR run status.
@@ -102,7 +111,7 @@ def prepare_and_launch_ci_test(
                  '```\n'
                  'run-ci-on-draft = true\n'
                  '```\n')
-        return non_blocking_errors
+        return blocking_errors, non_blocking_errors
 
     bundle_branch = config['bundle_branch']  # This is the default branch to use for the bundle.
     if test_annotations.jedi_bundle_branch:
@@ -139,24 +148,28 @@ def prepare_and_launch_ci_test(
     # Move the original bundle file to the original file.
     shutil.move(bundle_file, bundle_original)
 
-    # Rewrite the bundle cmake file twice
-    # First, rewrite the unit test bundle file with the build group commit hashes
+    test_dependencies = config['test_dependencies']
+    test_strategy = config['test_strategy']
+
+    # Rewrite the bundle cmake file with the selected projects for the first build stage.
     with open(bundle_file_unittest, 'w') as f:
-        enabled_bundles = set(config['unittest_dependencies'] + [config['target_project_name']])
         bundle.rewrite_build_group_whitelist(
             file_object=f,
-            enabled_bundles=enabled_bundles,
+            enabled_bundles=test_dependencies,
             build_group_commit_map=repo_to_commit_hash,
         )
+        LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
+                 f'bundles: {test_dependencies}.')
 
-    # Create an integration test file.
-    with open(bundle_integration, 'w') as f:
-        bundle.rewrite_build_group_blacklist(
-            file_object=f,
-            disabled_bundles=set(),
-            build_group_commit_map=repo_to_commit_hash,
-        )
-    LOG.info(f'{timer.checkpoint()}\n Rewrote bundle for build groups.')
+    # Create an integration test bundle definition if necessary.
+    if test_strategy == 'all':
+        with open(bundle_integration, 'w') as f:
+            bundle.rewrite_build_group_blacklist(
+                file_object=f,
+                disabled_bundles=set(),
+                build_group_commit_map=repo_to_commit_hash,
+            )
+            LOG.info(f'{timer.checkpoint()}\n Wrote second CMakeLists file with bundles.')
 
     # Add resources to the bundle by copying all files in /app/shell to jedi_ci_resources
     shutil.copytree(
@@ -235,12 +248,24 @@ def prepare_and_launch_ci_test(
 
     # write the test github check runs to the PR.
     for build_environment in chosen_build_environments:
-        checkrun_id_map = github_client.create_check_runs(
-            build_environment,
-            config['repo_name'],
-            config['owner'],
-            config['trigger_commit'],
-            test_annotations.next_ci_suffix)
+        integration_run_id = 0
+        unit_run_id = 0
+        if test_strategy in ('all', 'unit'):
+            unit_run_id = github_client.create_check_run(
+                github_client.UNIT_TEST_PREFIX,
+                build_environment,
+                config['repo_name'],
+                config['owner'],
+                config['trigger_commit'],
+                test_annotations.next_ci_suffix)
+        if test_strategy in ('all', 'integration'):
+            integration_run_id = github_client.create_check_run(
+                github_client.INTEGRATION_TEST_PREFIX,
+                build_environment,
+                config['repo_name'],
+                config['owner'],
+                config['trigger_commit'],
+                test_annotations.next_ci_suffix)
         LOG.info(f'{timer.checkpoint()}\nCreated check runs for {build_environment}.')
 
         # Note checkrun_id_map is dict {'unit': unit_run.id, 'integration': integration_run.id}
@@ -268,9 +293,9 @@ def prepare_and_launch_ci_test(
             unittest_tag=config['unittest_tag'],
             trigger_sha=config['trigger_commit'],
             trigger_pr=str(config['pull_request_number']),
-            integration_run_id=checkrun_id_map['integration'],
-            unit_run_id=checkrun_id_map['unit'],
-            unittest_dependencies=' '.join(config['unittest_dependencies']),
+            integration_run_id=integration_run_id,
+            unit_run_id=unit_run_id,
+            unittest_dependencies=' '.join(test_dependencies),
             test_script=config['test_script'],
         )
         job_arn = job['jobArn']
@@ -278,4 +303,4 @@ def prepare_and_launch_ci_test(
             f'{timer.checkpoint()}\nSubmitted Batch Job for build environment '
             f'{build_environment}: "{job_arn}".'
         )
-    return non_blocking_errors
+    return blocking_errors, non_blocking_errors
