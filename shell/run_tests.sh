@@ -214,6 +214,12 @@ echo "-------------------------------------------------------"
 #
 cd "${BUILD_DIR}"
 
+echo "-#--#- start vader debug clone #1 -#--#-"
+pushd /tmp
+GIT_TRACE=1 git clone https://github.com/jcsda-internal/vader.git vader-test1
+popd
+echo "-#--#- done vader debug clone #1 -#--#-"
+
 ecbuild \
       -Wno-dev \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -313,6 +319,11 @@ ecbuild \
       -DBUILD_PYIRI=ON \
       ${COMPILER_FLAGS[@]} "${JEDI_BUNDLE_DIR}"
 if [ $? -ne 0 ]; then
+    echo "-#--#- start vader debug clone #2 -#--#-"
+    pushd /tmp
+    GIT_TRACE=1 git clone https://github.com/jcsda-internal/vader.git vader-test2
+    popd
+    echo "-#--#- done vader debug clone #2 -#--#-"
     util.check_run_fail $TRIGGER_REPO_FULL $INTEGRATION_RUN_ID "ecbuild failed"
     util.evaluate_debug_timer_then_cleanup
     exit 0
