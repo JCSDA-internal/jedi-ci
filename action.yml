@@ -44,7 +44,7 @@ inputs:
     required: false
     default: ''
   test_strategy:
-    description: description: |
+    description: |
       The strategy used for building and running tests. May be ALL, INTEGRATION, or UNIT.
       - INTEGRATION: The bundle is trimmed to only include the test_dependencies all tests are run.
       - UNIT:        The bundle is trimmed to only include the test_dependencies and unit tests are run.
