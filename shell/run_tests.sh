@@ -154,8 +154,9 @@ TRIGGER_REPO=$(echo "$TRIGGER_REPO_FULL" | cut -d'/' -f2)
 UNIT_DEPENDENCIES=$(jq -r '.dependencies | join(" ")' $BUILD_JSON)
 
 # Update check-runs to include the batch job URL is included.
-util.check_run_runner_allocated $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
-util.check_run_start_build $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
+util.check_run_start_build $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
+util.check_run_runner_allocated $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
+
 
 # Get all GitLFS repositories from s3.
 pushd ${JEDI_BUNDLE_DIR}
