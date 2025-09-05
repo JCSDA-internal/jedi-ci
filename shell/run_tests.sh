@@ -100,22 +100,24 @@ EOF
 # address them in order of their use. Unused test IDs will be set to 0
 # and those are handled gracefully by the helper functions which treat
 # update and modify calls as a no-op.
-if [ $UNIT_RUN_ID -ne 0 && $INTEGRATION_RUN_ID -ne 0 ]; then
-    FIRST_CHECK_RUN_ID=$UNIT_RUN_ID
-    SECOND_CHECK_RUN_ID=$INTEGRATION_RUN_ID
-elif [ $UNIT_RUN_ID -ne 0 && $INTEGRATION_RUN_ID -eq 0 ]; then
-    FIRST_CHECK_RUN_ID=$UNIT_RUN_ID
-    SECOND_CHECK_RUN_ID=0
-elif [ $UNIT_RUN_ID -eq 0 && $INTEGRATION_RUN_ID -ne 0 ]; then
-    FIRST_CHECK_RUN_ID=$INTEGRATION_RUN_ID
-    SECOND_CHECK_RUN_ID=0
+if [ $UNIT_RUN_ID -ne 0 ] && [ $INTEGRATION_RUN_ID -ne 0 ]; then
+    export FIRST_CHECK_RUN_ID=$UNIT_RUN_ID
+    export SECOND_CHECK_RUN_ID=$INTEGRATION_RUN_ID
+elif [ $UNIT_RUN_ID -ne 0 ] && [ $INTEGRATION_RUN_ID -eq 0 ]; then
+    export FIRST_CHECK_RUN_ID=$UNIT_RUN_ID
+    export SECOND_CHECK_RUN_ID=0
+elif [ $UNIT_RUN_ID -eq 0 ]&& [ $INTEGRATION_RUN_ID -ne 0 ]; then
+    export FIRST_CHECK_RUN_ID=$INTEGRATION_RUN_ID
+    export SECOND_CHECK_RUN_ID=0
 fi
 
 # For local testing, check runs are created by this script in which case the prior logic
 # is overridden.
 if [ "${CREATE_CHECK_RUNS}" == "yes" ]; then
-    FIRST_CHECK_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "unit" $TRIGGER_SHA)
-    SECOND_CHECK_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "integration" $TRIGGER_SHA)
+    export FIRST_CHECK_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "unit" $TRIGGER_SHA)
+    export SECOND_CHECK_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "integration" $TRIGGER_SHA)
+    export UNIT_RUN_ID=$FIRST_CHECK_RUN_ID
+    export INTEGRATION_RUN_ID=$SECOND_CHECK_RUN_ID
 fi
 
 echo "--------------------------------------------------------------"
