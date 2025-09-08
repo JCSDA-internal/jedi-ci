@@ -41,7 +41,7 @@ def generate_token(pem_file, app_id, install_id, current_time):
         key_text = f.read()
     # This is used to make sure that we never issue "future" tokens that will
     # not be honored by GitHub. This factor is also subtracted from local
-    # expiration since GitHub allows 10 minutes TTL for auth tokens. 
+    # expiration since GitHub allows 10 minutes TTL for auth tokens.
     clock_drift_factor = 10
     issue_time = current_time - clock_drift_factor
     expiration_time = issue_time + 600
