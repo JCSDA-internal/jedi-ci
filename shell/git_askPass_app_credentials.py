@@ -44,7 +44,7 @@ def generate_token(pem_file, app_id, install_id, current_time):
     # relative to local time and set expiration to 20 minutes.
     clock_drift_factor = 10
     issue_time = current_time - clock_drift_factor
-    expiration_time = issue_time + 1200
+    expiration_time = issue_time + 600
 
     payload = {
         'iat': issue_time,
