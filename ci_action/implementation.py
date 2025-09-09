@@ -248,8 +248,13 @@ def prepare_and_launch_ci_test(
 
     # write the test github check runs to the PR.
     for build_environment in chosen_build_environments:
+
+        # Set default check run IDs to 0 since this value is used in the test runner to
+        # determine if a check run update is a no-op.
         integration_run_id = 0
         unit_run_id = 0
+
+        # Create GitHub check runs for the unit and integration tests (as required by strategy).
         if test_strategy in ('all', 'unit'):
             unit_run_id = github_client.create_check_run(
                 github_client.UNIT_TEST_PREFIX,
@@ -266,9 +271,9 @@ def prepare_and_launch_ci_test(
                 config['owner'],
                 config['trigger_commit'],
                 test_annotations.next_ci_suffix)
-        LOG.info(f'{timer.checkpoint()}\nCreated check runs for {build_environment}.')
+        LOG.info(f'{timer.checkpoint()}\nCreated check runs for build_environment \n'
+                 f' - unit: {unit_run_id}\n - integration: {integration_run_id}.')
 
-        # Note checkrun_id_map is dict {'unit': unit_run.id, 'integration': integration_run.id}
         debug_time = 60 * 30 if test_annotations.debug_mode else 0
         build_identity = (
             f'{config["repo_name"]}-'
