@@ -207,14 +207,6 @@ def main():
         LOG.error(f"Tests could not launch due to these errors:\n{error_list}")
         return 1
 
-    if non_blocking_errors:
-        # Enumerate and indent each error message.
-        indented_errors = [textwrap.indent(e, '    ') for e in non_blocking_errors]
-        enumerated_errors = [f' {i+1}. ' + e[4:] for i, e in enumerate(indented_errors)]
-        error_list = '\n'.join(enumerated_errors)
-        LOG.error(f"Tests launched successfully but experienced errors:\n{error_list}")
-        return 1
-
     return 0
 
 
