@@ -204,7 +204,7 @@ def main():
         # Enumerate and indent each error message.
         enumerated_errors = [f' {i+1}. ' + str(e) for i, e in enumerate(non_blocking_errors)]
         error_list = '\n'.join(enumerated_errors)
-        LOG.error(f"Tests could not launch due to these errors:\n{error_list}")
+        LOG.error(f"Tests launched successfully but experienced errors:\n{error_list}")
         return 1
 
     return 0
