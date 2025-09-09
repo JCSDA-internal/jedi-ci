@@ -229,14 +229,10 @@ ecbuild \
       -DCTEST_UPDATE_VERSION_ONLY=FALSE \
       -DBUILD_IODA_CONVERTERS=ON \
       -DBUILD_PYIRI=ON \
-      ${COMPILER_FLAGS[@]} "${JEDI_BUNDLE_DIR}" | tee configure_1.log
+      ${COMPILER_FLAGS[@]} "${JEDI_BUNDLE_DIR}"
 
 if [ $? -ne 0 ]; then
-    if grep -qi "remote: Invalid username or password." configure_1.log; then
-        util.check_run_fail $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID "Failure: see jcsda-internal/CI/issues/137"
-    else
-        util.check_run_fail $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID "Bundle configuration failed"
-    fi
+    util.check_run_fail $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID "Bundle configuration failed"
     util.check_run_skip $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
     util.evaluate_debug_timer_then_cleanup
     exit 0
@@ -363,7 +359,9 @@ TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
 ls -al "${BUILD_DIR}/Testing/${TEST_TAG}/"
 
 # Complete integration tests and allow a failure rate up to 3%
-util.check_run_end $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID 3
+
+export ALLOWED_INTEGRATION_FAIL_RATE=3
+util.check_run_end $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID $ALLOWED_INTEGRATION_FAIL_RATE
 
 # Upload codecov data if gcc compiler is used.
 if [ "$JEDI_COMPILER" = "gcc" ] && [ -f "${JEDI_BUNDLE_DIR}/${TRIGGER_REPO}/.codecov.yml" ]; then
