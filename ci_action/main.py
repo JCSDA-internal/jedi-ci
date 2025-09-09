@@ -12,7 +12,6 @@ import os
 import pathlib
 import subprocess
 import sys
-import textwrap
 
 from ci_action import implementation as ci_implementation
 
