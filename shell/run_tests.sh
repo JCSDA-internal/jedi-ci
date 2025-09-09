@@ -143,6 +143,10 @@ set -x
 # Extract just the repo name from the full repository path
 TRIGGER_REPO=$(echo "$TRIGGER_REPO_FULL" | cut -d'/' -f2)
 
+if [ "${CREATE_CHECK_RUNS}" == "yes" ]; then
+    UNIT_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "unit" $TRIGGER_SHA)
+    INTEGRATION_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "integration" $TRIGGER_SHA)
+fi
 
 # Update check-runs to include the batch job URL is included.
 util.check_run_start_build $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
