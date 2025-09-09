@@ -151,6 +151,7 @@ util.check_run_runner_allocated $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 # Get all GitLFS repositories from s3.
 pushd ${JEDI_BUNDLE_DIR}
 echo "showing git config"
+git config --global credential.helper 'cache --timeout=590'
 git config --list
 echo "Fetching GitLFS repositories via tarball."
 git config --global --add safe.directory '*'
