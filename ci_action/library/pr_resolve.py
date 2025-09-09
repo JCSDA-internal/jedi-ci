@@ -34,8 +34,13 @@ CI_TEST_SELECT_RE = re.compile(
     r'^jedi-ci-test-select\s?=\s?(random|all|intel|gcc|gcc11)?\s*$', re.MULTILINE | re.IGNORECASE)
 JEDI_BUNDLE_BRANCH_RE = re.compile(
     r'^jedi-ci-bundle-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)
-MANIFEST_BRANCH_RE = re.compile(
+DEPRECATED_MANIFEST_BRANCH_RE = re.compile(
     r'^jedi-ci-manifest-branch\s?=\s?([a-zA-Z0-9\/:#\._-]{1,70})?\s*$', re.MULTILINE | re.IGNORECASE)  # noqa: E501
+
+
+class Exception(Exception):
+    """Exception raised by any well-characterized PR resolve failure."""
+    pass
 
 
 class TestAnnotations(NamedTuple):
@@ -47,11 +52,6 @@ class TestAnnotations(NamedTuple):
     # passed to the build-info json file. If set to "true" the test runner will
     # not read from the cache and will build all code.
     skip_cache: str
-
-    # A string value representing a json boolean ("true" or "false"). This is
-    # passed to the build-info json file. If set to "true" the cache will be
-    # re-built.
-    rebuild_cache: str
 
     # Should draft pull request run all tests. Defaults to False.
     run_on_draft: bool
@@ -73,12 +73,6 @@ class TestAnnotations(NamedTuple):
     # default branch. This branch must exist in `JCSDA-internal/jedi-bundle`.
     jedi_bundle_branch: str
 
-    # Set the CI test manifest config file branch used for evaluating the test
-    # dependencies. If this value is not set (or is set to an empty string) the
-    # lambda function will use the 'develop' branch. Any specified branch
-    # must exist in `JCSDA-internal/CI` or the test will fail to configure.
-    jedi_ci_manifest_branch: str
-
 
 def read_test_annotations(
         repo_uri: str,
@@ -92,7 +86,7 @@ def read_test_annotations(
         test_select_regex=CI_TEST_SELECT_RE,
         next_ci_regex=NEXT_CI_RE,
         jedi_bundle_branch_regex=JEDI_BUNDLE_BRANCH_RE,
-        manifest_branch_regex=MANIFEST_BRANCH_RE,
+        manifest_branch_regex=DEPRECATED_MANIFEST_BRANCH_RE,
 ) -> TestAnnotations:
     """Reads all jedi-ci specific behavior annotations from a pull request.
 
@@ -128,21 +122,15 @@ def read_test_annotations(
         repo_name, org = github_client.get_repo_tuple_from_github_uri(repo_uri=repo_uri)
         build_group_pr_map[f'{org.lower()}/{repo_name.lower()}'] = int(pr_number)
 
-    # Cache behavior: note that skip cache controls read behavior while
-    # rebuild_cache controls write behavior. The correct global behavior can
-    # be understood globally from the keyword used since rebuilding the cache
-    # requires also skipping cache lookup a user skipping the cache may not
-    # want their change to update the shared binary cache.
+    # Cache behavior: "rebuild" is no longer supported. Only 'skip'.
+    skip_cache = 'false'
     cache_behavior = cache_regex.findall(pr_body)
+    if cache_behavior and cache_behavior[0].lower() == 'rebuild':
+        raise Exception('Cache rebuild (annotation "jedi-ci-build-cache=rebuild")'
+                        ' is no longer supported.')
     if cache_behavior and cache_behavior[0].lower() == 'skip':
         skip_cache = 'true'
-        rebuild_cache = 'false'
-    elif cache_behavior and cache_behavior[0].lower() == 'rebuild':
-        skip_cache = 'true'
-        rebuild_cache = 'true'
-    else:
-        skip_cache = 'false'
-        rebuild_cache = 'false'
+
     # Draft pull requests must be annotated for tests to run. If a pull request
     # is a draft pull request, the tests will be skipped unless the author
     # has added an annotation.
@@ -164,36 +152,27 @@ def read_test_annotations(
     else:
         test_select = 'random'
 
-    # Determine if there is a nonstandard jedi-bundle branch. Finding any
-    # value here updates the cache behavior to skip since the bundle changes
-    # may alter the build dependency DAG.
+    # Determine if there is a nonstandard jedi-bundle branch.
     bundle_branch_config = jedi_bundle_branch_regex.findall(pr_body)
     bundle_branch = ''
     if bundle_branch_config:
         bundle_branch = bundle_branch_config[0]
-        skip_cache = 'true'  # Do not read from the cache.
-        rebuild_cache = 'false'  # Do not save build results to the cache.
 
-    # If an alternative manifest branch is set, fetch it. Finding any value
-    # here updates the cache behavior to skip since the manifest may contain
-    # conflicting cache directives.
+    # There is no longer a unified "manifest". This check raises an exception
+    # so that the user re-configures their test annotations.
     manifest_branch_config = manifest_branch_regex.findall(pr_body)
-    manifest_branch = ''
     if manifest_branch_config:
-        manifest_branch = manifest_branch_config[0]
-        skip_cache = 'true'  # Do not read from the cache.
-        rebuild_cache = 'false'  # Do not save build results to the cache.
+        raise Exception('The "jedi-ci-manifest-branch" annotation is deprecated; dependency'
+                        ' configuration is now in //.github/workflows/start-jedi-ci.yml')
 
     return TestAnnotations(
         build_group_map=build_group_pr_map,
         skip_cache=skip_cache,
-        rebuild_cache=rebuild_cache,
         run_on_draft=run_on_draft,
         debug_mode=debug_mode,
         next_ci_suffix=next_ci_suffix,
         test_select=test_select,
         jedi_bundle_branch=bundle_branch,
-        jedi_ci_manifest_branch=manifest_branch,
     )
 
 
