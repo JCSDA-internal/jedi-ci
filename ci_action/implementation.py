@@ -125,6 +125,13 @@ def prepare_and_launch_ci_test(
             config['bundle_repository'], bundle_repo_path
         ])
 
+    # Move the target repository into the bundle repository.
+    target_project_path = os.path.join(bundle_repo_path, config['target_project_name'])
+    shutil.move(target_repo_path, target_project_path)
+    # Debug output - list the contents of the bundle repository.
+    LOG.info(f"Bundle repository contents: {os.listdir(bundle_repo_path)}")
+    LOG.info(f"Target project path: {target_project_path}")
+
     repo_to_commit_hash = pr_resolve.gather_build_group_hashes(
         test_annotations.build_group_map
     )
@@ -157,6 +164,7 @@ def prepare_and_launch_ci_test(
             file_object=f,
             enabled_bundles=test_dependencies,
             build_group_commit_map=repo_to_commit_hash,
+            source_projects=[config['target_project_name']],
         )
         LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
                  f'bundles: {test_dependencies}.')
@@ -168,6 +176,7 @@ def prepare_and_launch_ci_test(
                 file_object=f,
                 disabled_bundles=set(),
                 build_group_commit_map=repo_to_commit_hash,
+                source_projects=[config['target_project_name']],
             )
             LOG.info(f'{timer.checkpoint()}\n Wrote second CMakeLists file with bundles.')
 
