@@ -176,7 +176,6 @@ def prepare_and_launch_ci_test(
         )
     LOG.info(f'{timer.checkpoint()}\n Rewrote bundle for build groups.')
 
-
     # Add resources to the bundle by copying all files in /app/shell to jedi_ci_resources
     shutil.copytree(
         '/app/shell', os.path.join(bundle_repo_path, 'jedi_ci_resources')
