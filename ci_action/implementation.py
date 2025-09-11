@@ -130,7 +130,7 @@ def prepare_and_launch_ci_test(
     shutil.move(target_repo_path, target_project_path)
     # Debug output - list the contents of the bundle repository.
     LOG.info(f"Bundle repository contents: {os.listdir(bundle_repo_path)}")
-    LOG.info(f"Target project path: {target_project_path}")
+    LOG.info(f"Target project path content: {os.listdir(target_project_path)}")
     LOG.info(f"GITHUB_REPOSITORY_OWNER: {os.environ.get('GITHUB_REPOSITORY_OWNER'), 'unknown'}")
 
     repo_to_commit_hash = pr_resolve.gather_build_group_hashes(
