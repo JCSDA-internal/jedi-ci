@@ -159,7 +159,7 @@ git config --global credential.helper 'cache --timeout=590'
 git config --list
 echo "Fetching GitLFS repositories via tarball."
 git config --global --add safe.directory '*'
-for repo in ioda-data ufo-data fv3-jedi-data mpas-jedi-data ; do
+for repo in ioda-data ufo-data fv3-jedi-data mpas-jedi-data jedi-model-data ; do
     echo "repo == ${repo}"
     aws s3 cp "s3://jcsda-public-rpays/JCSDA-internal/${repo}.tar.gz" "${repo}.tar.gz" --no-progress
     tar -xf "${repo}.tar.gz"
