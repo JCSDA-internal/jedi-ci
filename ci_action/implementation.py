@@ -148,24 +148,28 @@ def prepare_and_launch_ci_test(
     # Move the original bundle file to the original file.
     shutil.move(bundle_file, bundle_original)
 
-    # Rewrite the bundle cmake file twice
-    # First, rewrite the unit test bundle file with the build group commit hashes
+    test_dependencies = config['test_dependencies']
+    test_strategy = config['test_strategy']
+
+    # Rewrite the bundle cmake file with the selected projects for the first build stage.
     with open(bundle_file_unittest, 'w') as f:
-        enabled_bundles = set(config['unittest_dependencies'] + [config['target_project_name']])
         bundle.rewrite_build_group_whitelist(
             file_object=f,
-            enabled_bundles=enabled_bundles,
+            enabled_bundles=test_dependencies,
             build_group_commit_map=repo_to_commit_hash,
         )
+        LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
+                 f'bundles: {test_dependencies}.')
 
-    # Create an integration test file.
-    with open(bundle_integration, 'w') as f:
-        bundle.rewrite_build_group_blacklist(
-            file_object=f,
-            disabled_bundles=set(),
-            build_group_commit_map=repo_to_commit_hash,
-        )
-    LOG.info(f'{timer.checkpoint()}\n Rewrote bundle for build groups.')
+    # Create an integration test bundle definition if necessary.
+    if test_strategy == 'all':
+        with open(bundle_integration, 'w') as f:
+            bundle.rewrite_build_group_blacklist(
+                file_object=f,
+                disabled_bundles=set(),
+                build_group_commit_map=repo_to_commit_hash,
+            )
+            LOG.info(f'{timer.checkpoint()}\n Wrote second CMakeLists file with bundles.')
 
     # Add resources to the bundle by copying all files in /app/shell to jedi_ci_resources
     shutil.copytree(
@@ -244,15 +248,32 @@ def prepare_and_launch_ci_test(
 
     # write the test github check runs to the PR.
     for build_environment in chosen_build_environments:
-        checkrun_id_map = github_client.create_check_runs(
-            build_environment,
-            config['repo_name'],
-            config['owner'],
-            config['trigger_commit'],
-            test_annotations.next_ci_suffix)
-        LOG.info(f'{timer.checkpoint()}\nCreated check runs for {build_environment}.')
 
-        # Note checkrun_id_map is dict {'unit': unit_run.id, 'integration': integration_run.id}
+        # Set default check run IDs to 0 since this value is used in the test runner to
+        # determine if a check run update is a no-op.
+        integration_run_id = 0
+        unit_run_id = 0
+
+        # Create GitHub check runs for the unit and integration tests (as required by strategy).
+        if test_strategy in ('all', 'unit'):
+            unit_run_id = github_client.create_check_run(
+                github_client.UNIT_TEST_PREFIX,
+                build_environment,
+                config['repo_name'],
+                config['owner'],
+                config['trigger_commit'],
+                test_annotations.next_ci_suffix)
+        if test_strategy in ('all', 'integration'):
+            integration_run_id = github_client.create_check_run(
+                github_client.INTEGRATION_TEST_PREFIX,
+                build_environment,
+                config['repo_name'],
+                config['owner'],
+                config['trigger_commit'],
+                test_annotations.next_ci_suffix)
+        LOG.info(f'{timer.checkpoint()}\nCreated check runs for build_environment \n'
+                 f' - unit: {unit_run_id}\n - integration: {integration_run_id}.')
+
         debug_time = 60 * 30 if test_annotations.debug_mode else 0
         build_identity = (
             f'{config["repo_name"]}-'
@@ -277,9 +298,9 @@ def prepare_and_launch_ci_test(
             unittest_tag=config['unittest_tag'],
             trigger_sha=config['trigger_commit'],
             trigger_pr=str(config['pull_request_number']),
-            integration_run_id=checkrun_id_map['integration'],
-            unit_run_id=checkrun_id_map['unit'],
-            unittest_dependencies=' '.join(enabled_bundles),
+            integration_run_id=integration_run_id,
+            unit_run_id=unit_run_id,
+            unittest_dependencies=' '.join(test_dependencies),
             test_script=config['test_script'],
         )
         job_arn = job['jobArn']

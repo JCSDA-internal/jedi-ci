@@ -103,17 +103,31 @@ def get_environment_config():
     self_test = os.environ.get('CI_SELF_TEST', 'false').lower() == 'true'
     test_script = os.environ.get('TEST_SCRIPT', 'run_tests.sh')
 
-    # Test dependencies as bundle items
-    test_deps = [d.strip() for d in os.environ.get('UNITTEST_BUNDLE_DEPENDENCIES', '').split(' ')]
-    filtered_test_deps = []
-    for td in test_deps:
-        if td:
-            filtered_test_deps.append(td)
-
     # Get the target project name. If not passed explicitly, use the repo name.
     target_project_name = os.environ.get('TARGET_PROJECT_NAME', '')
     if not target_project_name.strip():
         target_project_name = repo_name
+
+    # Collect the test dependencies from the environment variables.
+    unittest_deps_env = os.environ.get('UNITTEST_DEPENDENCIES', '').strip()
+    unittest_deps = [d.strip() for d in unittest_deps_env.split(' ') if d.strip()]
+    test_deps_env = os.environ.get('TEST_DEPENDENCIES', '').strip()
+    test_deps = [d.strip() for d in test_deps_env.split(' ') if d.strip()]
+
+    test_strategy = os.environ.get('TEST_STRATEGY', 'all').lower()
+    if test_strategy not in ['all', 'integration', 'unit']:
+        raise ValueError('Option "test_strategy" must be one of "ALL", "INTEGRATION", or "UNIT".')
+
+    # Handle deprecated config option 'unittest_dependencies'.
+    if test_deps and unittest_deps:
+        raise ValueError('Config option "unittest_dependencies" and '
+                         '"test_dependencies" cannot be set simultaneously.')
+    elif unittest_deps:
+        test_deps = unittest_deps
+        test_strategy = 'all'
+
+    # Ensure that the test dependencies include the target project.
+    test_deps = [d for d in set(test_deps + [target_project_name])]
 
     config = {
         'repository': repository,
@@ -129,7 +143,8 @@ def get_environment_config():
         'bundle_branch': default_bundle_branch,
         'bundle_repository': bundle_repository,
         'self_test': self_test,
-        'unittest_dependencies': filtered_test_deps,
+        'test_dependencies': test_deps,
+        'test_strategy': test_strategy,
         'unittest_tag': test_tag,
         'test_script': test_script,
         'target_project_name': target_project_name,
