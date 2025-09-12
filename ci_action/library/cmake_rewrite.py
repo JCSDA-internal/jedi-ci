@@ -132,6 +132,12 @@ class BundleLine:
         content = " ".join([str(c) for c in render_components])
         return f"ecbuild_bundle( {content} )"
 
+    def rewrite_as_source(self):
+        source_reference = BundleLinePart("SOURCE", False, self.project_name)
+        render_components = [self.project, source_reference]
+        content = " ".join([str(c) for c in render_components])
+        return f"ecbuild_bundle( {content} )"
+
     def rewrite(self, git_repo: str = None, branch: str = None, tag: str = None):
         if git_repo:
             source_reference = BundleLinePart("GIT", False, git_repo, quote_char='"')
@@ -190,6 +196,7 @@ class CMakeFile:
             enabled_bundles: Optional[Container[str]] = None,
             rewrite_rules: Optional[dict[str, str]] = None,
             build_group_commit_map: Optional[Dict[str, Dict[str, Any]]] = None,
+            source_projects: Optional[Container[str]] = None,
     ):
         """Rewrite the CMakeFile object to the file_object.
 
@@ -208,7 +215,11 @@ class CMakeFile:
                         "commit": "abcdef123456"
                     }
                 }
+            source_projects: A list of project names that are already cloned into the bundle
+                             repository. These will be rewritten as a SOURCE bundle.
         """
+        if source_projects is None:
+            source_projects = set()
         if enabled_bundles is None:
             enabled_bundles = set()
         if rewrite_rules is None:
@@ -231,6 +242,12 @@ class CMakeFile:
             # If the line is a bundle we need to determine if/how it should be rewritten.
             if bundle_line.project_name not in enabled_bundles:
                 lines.append(bundle_line.disabled_line() + '\n')
+                continue
+
+            # If the project is already cloned as a source directory in the bundle repository.
+            # it may be in the build map, but ecbuild will ignore this and use the provided source.
+            if bundle_line.project_name in source_projects:
+                lines.append(bundle_line.rewrite_as_source() + '\n')
                 continue
 
             # Check if this bundle matches a github org/repo key in the build group commit map
@@ -261,33 +278,37 @@ class CMakeFile:
     def rewrite_whitelist(self,
                           file_object,
                           enabled_bundles: Container[str],
-                          rewrite_rules: dict[str, str]):
+                          rewrite_rules: dict[str, str],
+                          source_projects: Optional[Container[str]] = None):
         """Rewrite the CMakeFile object to the file_object."""
-        self._rewrite_file_implementation(file_object, enabled_bundles, rewrite_rules)
+        self._rewrite_file_implementation(file_object, enabled_bundles, rewrite_rules, source_projects=source_projects)  # noqa: E501
 
     def rewrite_blacklist(self,
                           file_object,
                           disabled_bundles: Container[str],
-                          rewrite_rules: dict[str, str]):
+                          rewrite_rules: dict[str, str],
+                          source_projects: Optional[Container[str]] = None):
         """Rewrite the CMakeFile object to the file_object."""
         enabled_bundles = set(self.bundle_line_names.keys())
         for bundle in disabled_bundles:
             enabled_bundles.discard(bundle)
-        self._rewrite_file_implementation(file_object, enabled_bundles, rewrite_rules)
+        self._rewrite_file_implementation(file_object, enabled_bundles, rewrite_rules, source_projects=source_projects)  # noqa: E501
 
     def rewrite_build_group_whitelist(self,
                                       file_object,
                                       enabled_bundles: Container[str],
-                                      build_group_commit_map: Dict[str, Dict[str, Any]]):
+                                      build_group_commit_map: Dict[str, Dict[str, Any]],
+                                      source_projects: Optional[Container[str]] = None):
         """Rewrite the CMakeFile object to the file_object."""
-        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)  # noqa: E501
+        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map, source_projects=source_projects)  # noqa: E501
 
     def rewrite_build_group_blacklist(self,
                                       file_object,
                                       disabled_bundles: Container[str],
-                                      build_group_commit_map: Dict[str, Dict[str, Any]]):
+                                      build_group_commit_map: Dict[str, Dict[str, Any]],
+                                      source_projects: Optional[Container[str]] = None):
         """Rewrite the CMakeFile object to the file_object."""
         enabled_bundles = set(self.bundle_line_names.keys())
         for bundle in disabled_bundles:
             enabled_bundles.discard(bundle)
-        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)  # noqa: E501
+        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map, source_projects=source_projects)  # noqa: E501

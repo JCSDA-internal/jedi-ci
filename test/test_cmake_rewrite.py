@@ -80,6 +80,11 @@ class TestBundleLine(unittest.TestCase):
         self.assertIn(f'GIT "{new_repo}"', new_line)
         self.assertTrue('myrepo.git' not in new_line or new_repo in new_line)
 
+    def test_rewrite_as_source(self):
+        bl = BundleLine(SIMPLE_GIT_BUNDLE_LINE)
+        new_line = bl.rewrite_as_source()
+        self.assertEqual(new_line, 'ecbuild_bundle( PROJECT myproject SOURCE myproject )')
+
 
 ORIGINAL_CMAKE_FILE = """
 cmake_minimum_required( VERSION 3.14 FATAL_ERROR )
@@ -180,8 +185,17 @@ class TestCMakeFile(unittest.TestCase):
         self.assertMultiLineEqual(fake_file.getvalue(), expected)
 
     def test_rewrite_build_group_whitelist_multiple(self):
-        cmake_file = CMakeFile('# File header\necbuild_bundle( PROJECT oops     GIT "https://github.com/jcsda-internal/oops.git"       BRANCH develop UPDATE )\necbuild_bundle( PROJECT pyiri-jedi  GIT     "https://github.com/jcsda-internal/pyiri-jedi.git"    BRANCH develop  UPDATE  RECURSIVE )\necbuild_bundle( PROJECT gsibec   GIT "https://github.com/geos-esm/GSIbec" TAG 1.2.1 )\n')
-        expected = '# File header\necbuild_bundle( PROJECT oops GIT "https://github.com/jcsda-internal/oops.git" TAG abc123456 )\necbuild_bundle( PROJECT pyiri-jedi GIT "https://github.com/jcsda-internal/pyiri-jedi.git" TAG fedcba654321 RECURSIVE )\n# ecbuild_bundle( PROJECT gsibec   GIT "https://github.com/geos-esm/GSIbec" TAG 1.2.1 )\n'
+        cmake_file = CMakeFile(
+            '# File header\necbuild_bundle( PROJECT oops     GIT "https://github.com/jcsda-internal/oops.git"       BRANCH develop UPDATE )\n'
+            'ecbuild_bundle( PROJECT pyiri-jedi  GIT     "https://github.com/jcsda-internal/pyiri-jedi.git"    BRANCH develop  UPDATE  RECURSIVE )\n'
+            'ecbuild_bundle( PROJECT ufo   GIT "https://github.com/jcsda-internal/ufo.git" BRANCH develop )\n'
+            'ecbuild_bundle( PROJECT gsibec   GIT "https://github.com/geos-esm/GSIbec" TAG 1.2.1 )\n')
+        expected = (
+            '# File header\n'
+            'ecbuild_bundle( PROJECT oops GIT "https://github.com/jcsda-internal/oops.git" TAG abc123456 )\n'
+            'ecbuild_bundle( PROJECT pyiri-jedi GIT "https://github.com/jcsda-internal/pyiri-jedi.git" TAG fedcba654321 RECURSIVE )\n'
+            'ecbuild_bundle( PROJECT ufo SOURCE ufo )\n'
+            '# ecbuild_bundle( PROJECT gsibec   GIT "https://github.com/geos-esm/GSIbec" TAG 1.2.1 )\n')
         fake_file = StringIO()
 
         # Create a build group commit map with multiple repositories
@@ -208,8 +222,9 @@ class TestCMakeFile(unittest.TestCase):
 
         cmake_file.rewrite_build_group_whitelist(
             file_object=fake_file,
-            enabled_bundles=set(['oops', 'pyiri-jedi']),
-            build_group_commit_map=build_group_map
+            enabled_bundles=set(['oops', 'ufo', 'pyiri-jedi']),
+            build_group_commit_map=build_group_map,
+            source_projects=['ufo'],
         )
         self.assertMultiLineEqual(fake_file.getvalue(), expected)
 
