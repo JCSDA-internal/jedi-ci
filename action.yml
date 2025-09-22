@@ -52,7 +52,7 @@ inputs:
                      test_dependencies to build the unit tests and the second step
                      building the full bundle for integration tests.
     required: false
-    default: ''
+    default: ALL
   self_test:
     description: 'Whether to run a self-test of the JEDI CI action.'
     required: false
