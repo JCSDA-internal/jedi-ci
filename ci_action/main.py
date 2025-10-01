@@ -129,6 +129,9 @@ def get_environment_config():
     # Ensure that the test dependencies include the target project.
     test_deps = [d for d in set(test_deps + [target_project_name])]
 
+    # Get the build cache bucket.
+    build_cache_bucket = os.environ.get('BUILD_CACHE_BUCKET', 'jcsda-usaf-ci-build-cache')
+
     config = {
         'repository': repository,
         'owner': owner,
@@ -148,6 +151,7 @@ def get_environment_config():
         'unittest_tag': test_tag,
         'test_script': test_script,
         'target_project_name': target_project_name,
+        'build_cache_bucket': build_cache_bucket
     }
     return config
 

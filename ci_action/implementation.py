@@ -20,7 +20,7 @@ BUILD_ENVIRONMENTS = ['gcc', 'intel', 'gcc11']
 
 LOG = logging.getLogger("implementation")
 
-BUILD_CACHE_BUCKET = os.environ.get('BUILD_CACHE_BUCKET', 'jcsda-usaf-ci-build-cache')
+TEST_JOB_TIMEOUT_HOURS = 6
 
 
 class TimeCheckpointer:
@@ -66,7 +66,7 @@ def prepare_and_launch_ci_test(
         infra_config: The infrastructure configuration for the CI test, pulled
                       from the cloud formation application resources.
         config: The GitHub action environment configuration including
-                            PR metadata and passed config variables.
+                PR metadata and passed config variables.
         bundle_repo_path: The path to the bundle repository.
         target_repo_path: The path to the target repository.
 
@@ -193,7 +193,7 @@ def prepare_and_launch_ci_test(
     )
     s3_client = boto3.client('s3')
     configured_bundle_tarball_s3_path = upload_to_aws(
-        BUILD_CACHE_BUCKET, s3_client, bundle_tarball, s3_file
+        config['build_cache_bucket'], s3_client, bundle_tarball, s3_file
     )
 
     # Select the build environments to test.
@@ -243,7 +243,7 @@ def prepare_and_launch_ci_test(
     batch_config_builder = aws_client.BatchSubmitConfigBuilder(
         job_name_map=infra_config['batch_job_name_map'],
         job_queue=infra_config['batch_queue'],
-        timeout=60 * 240
+        timeout=60 * 60 * TEST_JOB_TIMEOUT_HOURS,
     )
 
     # write the test github check runs to the PR.
