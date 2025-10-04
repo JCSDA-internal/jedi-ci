@@ -254,9 +254,9 @@ util.check_run_start_test $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
 
 # Run unit tests.
 if [ "${UNIT_RUN_ID}" -eq 0 ]; then
-    ctest --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+    ctest --output-junit junit_out_1.xml --timeout 500 -C RelWithDebInfo -D ExperimentalTest
 else
-    ctest -L $UNITTEST_TAG --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+    ctest -L $UNITTEST_TAG --output-junit junit_out_1.xml --timeout 500 -C RelWithDebInfo -D ExperimentalTest
 fi
 
 # Upload ctests.
@@ -351,20 +351,24 @@ TEST_TIMEOUT=180
 if [ "${TRIGGER_REPO}" = "soca" ]; then
     TEST_TIMEOUT=30
 fi
-ctest -LE "${UNITTEST_TAG}|gsibec|rttov|oasim|ropp-ufo" --timeout $TEST_TIMEOUT -C RelWithDebInfo -D ExperimentalTest
+ctest -LE "${UNITTEST_TAG}|gsibec|rttov|oasim|ropp-ufo" --output-junit junit_out_2.xml --timeout $TEST_TIMEOUT -C RelWithDebInfo -D ExperimentalTest
 
 # Upload ctests.
 ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous -- --track Continuous --group Continuous
 
-find ${BUILD_DIR}/Testing -type f
-find ${BUILD_DIR}/Testing -type f -exec head -n5 {} \;
+# Upload junit xml
+if [ -f junit_out_1.xml ]; then
+  aws s3 cp junit_out_1.xml s3://${PUBLIC_LOGS_BUCKET}/junit_output/${BUILD_IDENTITY}-1.xml
+fi
+if [ -f junit_out_2.xml ]; then
+  aws s3 cp junit_out_2.xml s3://${PUBLIC_LOGS_BUCKET}/junit_output/${BUILD_IDENTITY}-2.xml
+fi
 
 echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
 ls -al "${BUILD_DIR}/Testing/${TEST_TAG}/"
 
 # Complete integration tests and allow a failure rate up to 3%
-
 export ALLOWED_INTEGRATION_FAIL_RATE=3
 util.check_run_end $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID $ALLOWED_INTEGRATION_FAIL_RATE
 
