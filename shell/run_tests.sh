@@ -346,12 +346,7 @@ TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
 util.check_run_start_test $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 
 # Run integration tests.
-TEST_TIMEOUT=180
-# TODO(https://github.com/JCSDA-internal/jedi-ci/issues/37): revert this once we have a permanent fix.
-if [ "${TRIGGER_REPO}" = "soca" ]; then
-    TEST_TIMEOUT=30
-fi
-ctest -LE "${UNITTEST_TAG}|gsibec|rttov|oasim|ropp-ufo" --timeout $TEST_TIMEOUT -C RelWithDebInfo -D ExperimentalTest
+ctest -LE "${UNITTEST_TAG}|gsibec|rttov|oasim|ropp-ufo" --timeout 180 -C RelWithDebInfo -D ExperimentalTest
 
 # Upload ctests.
 ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous -- --track Continuous --group Continuous
