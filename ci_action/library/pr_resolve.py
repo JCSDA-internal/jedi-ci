@@ -181,8 +181,13 @@ def get_build_group_pr_map(build_group_members):
     for member in build_group_members:
         member_match = BUILD_GROUP_LINK.search(member)
         if not member_match:
+            LOG.info(f'Skipping malformed build group: {member}')
             continue
         owner, repo, pull_number = member_match.groups()
+        if owner.lower() == 'metoffice':
+            # UKMO CI tests some non-public code which JEDI-CI will skip.
+            LOG.info(f'Skipping UKMO build group: {member}')
+            continue
         pr_map[f'{owner.lower()}/{repo.lower()}'] = int(pull_number)
     return pr_map
 
