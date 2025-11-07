@@ -179,6 +179,10 @@ def read_test_annotations(
 def get_build_group_pr_map(build_group_members):
     pr_map = {}
     for member in build_group_members:
+        if 'github.com/metoffice' in member.lower():
+            # UKMO CI tests some non-public code which JEDI-CI will skip.
+            LOG.info(f'Skipping UKMO build group: {member}')
+            continue
         member_match = BUILD_GROUP_LINK.search(member)
         if not member_match:
             continue
