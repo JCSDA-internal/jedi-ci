@@ -42,19 +42,20 @@ export TEST_ROOT="${WORKDIR}"
 export JEDI_BUNDLE_DIR="${WORKDIR}/bundle"
 export CI_SCRIPTS_DIR=$WORKDIR/bundle/jedi_ci_resources
 export BUILD_PARALLELISM=5
-export ENV_EXCLUDES=""
 
 
 # Set compiler-specific flags and options specific to different tool chains. The
 # COMPILER_FLAGS array is used in the ecbuild invocation.
 export COMPILER_FLAGS=( '-DCMAKE_DISABLE_FIND_PACKAGE_bufr_query=ON' )
+export ENV_CTEST_EXCLUDES=""
+
 if [ $JEDI_COMPILER = "intel" ]; then
     source /opt/intel/oneapi/compiler/latest/env/vars.sh
     source /opt/intel/oneapi/mpi/latest/env/vars.sh
     # Compiling with -O2 is too slow and uses too much memory
     COMPILER_FLAGS+=( '-DECBUILD_C_FLAGS_RELWITHDEBINFO="-O1 -g"' '-DECBUILD_CXX_FLAGS_RELWITHDEBINFO="-O1 -g"' '-DECBUILD_Fortran_FLAGS_RELWITHDEBINFO="-O1 -g -fp-model=precise"' )
     export BUILD_PARALLELISM=4
-    export ENV_EXCLUDES="CI_exclude_hang_gnssro_ukmo_intel_O1|CI_exclude_segfault_camelemis_atlas"
+    export ENV_CTEST_EXCLUDES="CI_exclude_hang_gnssro_ukmo_intel_O1|CI_exclude_segfault_camelemis_atlas"
 fi
 
 if [ $JEDI_COMPILER = "clang" ]; then
