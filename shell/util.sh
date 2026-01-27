@@ -292,3 +292,23 @@ util.check_run_eval_test_xml() {
     fi
     return 1
 }
+
+# This function generates a ctest label exclude flag from a given
+# regex input if and only if the input is not empty. Otherwise it
+# Returns the empty string preventing ctest from receiving an empty flag.
+# This function is tolerant of extraneous pipes created by appending
+# nullable regex components with pipes.
+# Args:
+#     $1: Regex of test labels to exclude, or empty string to exclude no labels.
+util.ctest_LE_flag() {
+    # Accept input, if it includes leading or trailing pipe, remove it.
+    exclude_regex="$(echo "${1}" | sed 's/|$//' | sed 's/^|//')"
+
+    # If input regex is zero, we return no flag.
+    if [ -z "${exclude_regex}" ]; then
+        printf ""
+        return 0
+    fi
+    printf "\-LE ${exclude_regex}"
+    return 0
+}
