@@ -56,6 +56,10 @@ if [ $JEDI_COMPILER = "intel" ]; then
     COMPILER_FLAGS+=( '-DECBUILD_C_FLAGS_RELWITHDEBINFO="-O1 -g"' '-DECBUILD_CXX_FLAGS_RELWITHDEBINFO="-O1 -g"' '-DECBUILD_Fortran_FLAGS_RELWITHDEBINFO="-O1 -g -fp-model=precise"' )
     export BUILD_PARALLELISM=4
     export ENV_CTEST_EXCLUDES="CI_exclude_hang_gnssro_ukmo_intel_O1|CI_exclude_segfault_camelemis_atlas"
+
+    # Temporary measure - use sed to disable mpas/mpas-jedi in the intel-oneapi build.
+    # Tracking bug: https://github.com/JCSDA-internal/jedi-ci/issues/47
+    sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt    
 fi
 
 if [ $JEDI_COMPILER = "clang" ]; then
