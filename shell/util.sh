@@ -306,9 +306,9 @@ util.ctest_LE_flag() {
 
     # If input regex is zero, we return no flag.
     if [ -z "${exclude_regex}" ]; then
-        printf ""
+        echo ""
         return 0
     fi
-    printf "\-LE ${exclude_regex}"
+    echo "-LE ${exclude_regex}"
     return 0
 }
