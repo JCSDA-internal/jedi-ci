@@ -234,7 +234,7 @@ ecbuild \
       -DCTEST_UPDATE_VERSION_ONLY=FALSE \
       -DBUILD_IODA_CONVERTERS=ON \
       -DBUILD_PYIRI=ON \
-      ${COMPILER_FLAGS[@]} "${JEDI_BUNDLE_DIR}"
+      "${COMPILER_FLAGS[@]}" "${JEDI_BUNDLE_DIR}"
 
 if [ $? -ne 0 ]; then
     util.check_run_fail $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID "Bundle configuration failed"
@@ -328,7 +328,7 @@ ecbuild \
     -DCTEST_UPDATE_VERSION_ONLY=FALSE \
     -DBUILD_IODA_CONVERTERS=ON \
     -DBUILD_PYIRI=ON \
-    ${COMPILER_FLAGS[@]} "${JEDI_BUNDLE_DIR}"
+    "${COMPILER_FLAGS[@]}" "${JEDI_BUNDLE_DIR}"
 if [ $? -ne 0 ]; then
     util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "ecbuild failed"
     util.evaluate_debug_timer_then_cleanup
