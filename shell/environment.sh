@@ -53,7 +53,7 @@ if [ $JEDI_COMPILER = "intel" ]; then
     source /opt/intel/oneapi/compiler/latest/env/vars.sh
     source /opt/intel/oneapi/mpi/latest/env/vars.sh
     # Compiling with -O2 is too slow and uses too much memory
-    COMPILER_FLAGS+=( '-DECBUILD_C_FLAGS_RELWITHDEBINFO="-O1 -g"' '-DECBUILD_CXX_FLAGS_RELWITHDEBINFO="-O1 -g"' '-DECBUILD_Fortran_FLAGS_RELWITHDEBINFO="-O1 -g -fp-model=precise"' )
+    COMPILER_FLAGS+=( '-DECBUILD_C_FLAGS_RELWITHDEBINFO=-O1 -g' '-DECBUILD_CXX_FLAGS_RELWITHDEBINFO=-O1 -g' '-DECBUILD_Fortran_FLAGS_RELWITHDEBINFO=-O1 -g -fp-model=precise' )
     export BUILD_PARALLELISM=4
     export ENV_CTEST_EXCLUDES="CI_exclude_fv3jedi|CI_exclude_hang_gnssro_ukmo_intel_O1|CI_exclude_segfault_camelemis_atlas"
 
