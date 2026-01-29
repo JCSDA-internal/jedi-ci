@@ -254,9 +254,9 @@ util.check_run_start_test $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
 
 # Run unit tests.
 if [ "${UNIT_RUN_ID}" -eq 0 ]; then
-    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${CTEST_EXCLUDE}") --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") --timeout 500 -C RelWithDebInfo -D ExperimentalTest
 else
-    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}) -L $UNITTEST_TAG --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L $UNITTEST_TAG --timeout 500 -C RelWithDebInfo -D ExperimentalTest
 fi
 
 # Upload ctests.
