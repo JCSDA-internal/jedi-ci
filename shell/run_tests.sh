@@ -77,6 +77,7 @@ fi
 
 cat << EOF
 Configuration:
+JEDI_COMPILER=${JEDI_COMPILER}
 GITHUB_APP_PRIVATE_KEY_FILE=${GITHUB_APP_PRIVATE_KEY_FILE}
 GITHUB_APP_ID=${GITHUB_APP_ID}
 GITHUB_INSTALL_ID=${GITHUB_INSTALL_ID}
@@ -90,10 +91,14 @@ OMPI_MCA_rmaps_base_oversubscribe=${OMPI_MCA_rmaps_base_oversubscribe}
 CI_SCRIPTS_DIR=${CI_SCRIPTS_DIR}
 CC="${CC}"
 CXX="${CXX}"
+FC="${FC}"
 UNIT_DEPENDENCIES=${UNIT_DEPENDENCIES}
 UNIT_RUN_ID=${UNIT_RUN_ID}
 INTEGRATION_RUN_ID=${INTEGRATION_RUN_ID}
 EOF
+
+echo "Fortran compiler version"
+$FC -v
 
 # The check run IDs might not both be set depending on the test strategy.
 # In order to handle all test strategies, we will check these values
