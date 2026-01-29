@@ -254,9 +254,9 @@ util.check_run_start_test $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
 
 # Run unit tests.
 if [ "${UNIT_RUN_ID}" -eq 0 ]; then
-    ctest --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") --timeout 500 -C RelWithDebInfo -D ExperimentalTest
 else
-    ctest -L $UNITTEST_TAG --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L $UNITTEST_TAG --timeout 500 -C RelWithDebInfo -D ExperimentalTest
 fi
 
 # Upload ctests.
@@ -270,7 +270,7 @@ echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 # if the unit run id is 0 then the first run is an integration test.
 ALLOWED_UNIT_FAIL_RATE=0
 if [ $UNITTEST_TAG = 'ufo' ] || [ $UNIT_RUN_ID -eq 0 ]; then
-    ALLOWED_UNIT_FAIL_RATE=1
+    ALLOWED_UNIT_FAIL_RATE=0
 fi
 
 # Close out the check run for unit tests and mark success or failure.
@@ -346,7 +346,7 @@ TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
 util.check_run_start_test $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 
 # Run integration tests.
-ctest -LE "${UNITTEST_TAG}|gsibec|rttov|oasim|ropp-ufo" --timeout 180 -C RelWithDebInfo -D ExperimentalTest
+ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -D ExperimentalTest
 
 # Upload ctests.
 ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous -- --track Continuous --group Continuous
@@ -360,7 +360,7 @@ ls -al "${BUILD_DIR}/Testing/${TEST_TAG}/"
 
 # Complete integration tests and allow a failure rate up to 3%
 
-export ALLOWED_INTEGRATION_FAIL_RATE=3
+export ALLOWED_INTEGRATION_FAIL_RATE=0
 util.check_run_end $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID $ALLOWED_INTEGRATION_FAIL_RATE
 
 # Upload codecov data if gcc compiler is used.

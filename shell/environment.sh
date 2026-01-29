@@ -46,13 +46,20 @@ export BUILD_PARALLELISM=5
 
 # Set compiler-specific flags and options specific to different tool chains. The
 # COMPILER_FLAGS array is used in the ecbuild invocation.
-export COMPILER_FLAGS=( )
+export COMPILER_FLAGS=( '-DCMAKE_DISABLE_FIND_PACKAGE_bufr_query=ON' )
+export ENV_CTEST_EXCLUDES=""
+
 if [ $JEDI_COMPILER = "intel" ]; then
     source /opt/intel/oneapi/compiler/latest/env/vars.sh
     source /opt/intel/oneapi/mpi/latest/env/vars.sh
     # Compiling with -O2 is too slow and uses too much memory
-    export COMPILER_FLAGS=( -DECBUILD_C_FLAGS_RELWITHDEBINFO=-O1 -DECBUILD_CXX_FLAGS_RELWITHDEBINFO=-O1 -DECBUILD_Fortran_FLAGS_RELWITHDEBINFO=-O1 )
+    COMPILER_FLAGS+=( '-DECBUILD_C_FLAGS_RELWITHDEBINFO="-O1 -g"' '-DECBUILD_CXX_FLAGS_RELWITHDEBINFO="-O1 -g"' '-DECBUILD_Fortran_FLAGS_RELWITHDEBINFO="-O1 -g -fp-model=precise"' )
     export BUILD_PARALLELISM=4
+    export ENV_CTEST_EXCLUDES="CI_exclude_fv3jedi|CI_exclude_hang_gnssro_ukmo_intel_O1|CI_exclude_segfault_camelemis_atlas"
+
+    # Temporary measure - use sed to disable mpas/mpas-jedi in the intel-oneapi build.
+    # Tracking bug: https://github.com/JCSDA-internal/jedi-ci/issues/47
+    sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt    
 fi
 
 if [ $JEDI_COMPILER = "clang" ]; then
