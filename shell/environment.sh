@@ -59,7 +59,10 @@ if [ $JEDI_COMPILER = "intel" ]; then
 
     # Temporary measure - use sed to disable mpas/mpas-jedi in the intel-oneapi build.
     # Tracking bug: https://github.com/JCSDA-internal/jedi-ci/issues/47
-    sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt    
+    sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt
+    if [ -f "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration" ]; then
+        sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration
+    fi
 fi
 
 if [ $JEDI_COMPILER = "clang" ]; then
