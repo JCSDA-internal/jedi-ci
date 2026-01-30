@@ -355,7 +355,7 @@ TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
 util.check_run_start_test $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 
 # Run integration tests.
-ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -D ExperimentalTest
+ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -D ExperimentalTest
 
 # Upload ctests.
 ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous -- --track Continuous --group Continuous
