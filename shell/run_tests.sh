@@ -269,7 +269,7 @@ else
 fi
 
 # Upload ctests.
-ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous -- --track Continuous --group Continuous
+ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous --track Continuous --group Continuous
 
 echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 
@@ -358,7 +358,7 @@ util.check_run_start_test $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -D ExperimentalTest
 
 # Upload ctests.
-ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous -- --track Continuous --group Continuous
+ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous --track Continuous --group Continuous
 
 find ${BUILD_DIR}/Testing -type f
 find ${BUILD_DIR}/Testing -type f -exec head -n5 {} \;
