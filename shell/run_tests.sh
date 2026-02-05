@@ -231,6 +231,7 @@ cd "${BUILD_DIR}"
 
 ecbuild \
       -Wno-dev \
+      -DBUILD_GSIBEC=ON \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCDASH_OVERRIDE_SYSTEM_NAME="${JEDI_COMPILER}-Container" \
       -DCDASH_OVERRIDE_SITE=AWSBatch \
@@ -325,6 +326,7 @@ fi
 
 ecbuild \
     -Wno-dev \
+    -DBUILD_GSIBEC=ON \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCDASH_OVERRIDE_SYSTEM_NAME="${JEDI_COMPILER}-Container" \
     -DCDASH_OVERRIDE_SITE=AWSBatch \
