@@ -49,6 +49,15 @@ export BUILD_PARALLELISM=5
 export COMPILER_FLAGS=( '-DCMAKE_DISABLE_FIND_PACKAGE_bufr_query=ON' )
 export ENV_CTEST_EXCLUDES=""
 
+# Temporary measure - use sed to disable mpas/mpas-jedi. MPAS has two issues right now.
+#   First, MPAS does not work with intel: https://github.com/JCSDA-internal/jedi-ci/issues/47
+#   Second, MPAS is broken due to a backwards incompatible change in MMM-physics: https://github.com/JCSDA-internal/jedi-ci/issues/58
+sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt
+if [ -f "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration" ]; then
+    sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration
+fi
+
+
 if [ $JEDI_COMPILER = "intel" ]; then
     source /opt/intel/oneapi/compiler/latest/env/vars.sh
     source /opt/intel/oneapi/mpi/latest/env/vars.sh
@@ -56,13 +65,6 @@ if [ $JEDI_COMPILER = "intel" ]; then
     COMPILER_FLAGS+=( '-DECBUILD_C_FLAGS_RELWITHDEBINFO=-O1 -g' '-DECBUILD_CXX_FLAGS_RELWITHDEBINFO=-O1 -g' '-DECBUILD_Fortran_FLAGS_RELWITHDEBINFO=-O1 -g -fp-model=precise' )
     export BUILD_PARALLELISM=4
     export ENV_CTEST_EXCLUDES="CI_exclude_fv3jedi|CI_exclude_hang_gnssro_ukmo_intel_O1|CI_exclude_segfault_camelemis_atlas"
-
-    # Temporary measure - use sed to disable mpas/mpas-jedi in the intel-oneapi build.
-    # Tracking bug: https://github.com/JCSDA-internal/jedi-ci/issues/47
-    sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt
-    if [ -f "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration" ]; then
-        sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration
-    fi
 fi
 
 if [ $JEDI_COMPILER = "clang" ]; then
