@@ -49,15 +49,6 @@ export BUILD_PARALLELISM=5
 export COMPILER_FLAGS=( '-DCMAKE_DISABLE_FIND_PACKAGE_bufr_query=ON' )
 export ENV_CTEST_EXCLUDES=""
 
-# Temporary measure - use sed to disable mpas/mpas-jedi. MPAS has two issues right now.
-#   First, MPAS does not work with intel: https://github.com/JCSDA-internal/jedi-ci/issues/47
-#   Second, MPAS is broken due to a backwards incompatible change in MMM-physics: https://github.com/JCSDA-internal/jedi-ci/issues/58
-sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt
-if [ -f "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration" ]; then
-    sed -i '/PROJECT[[:space:]]\+mpas/d' ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration
-fi
-
-
 if [ $JEDI_COMPILER = "intel" ]; then
     source /opt/intel/oneapi/compiler/latest/env/vars.sh
     source /opt/intel/oneapi/mpi/latest/env/vars.sh
