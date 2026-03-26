@@ -47,22 +47,24 @@ export BUILD_PARALLELISM=5
 # Set compiler-specific flags and options specific to different tool chains. The
 # COMPILER_FLAGS array is used in the ecbuild invocation.
 export COMPILER_FLAGS=( '-DCMAKE_DISABLE_FIND_PACKAGE_bufr_query=ON' )
-export ENV_CTEST_EXCLUDES=""
+export ENV_CTEST_EXCLUDES="nightly|ci_flake_disable"
 
 if [ $JEDI_COMPILER = "intel" ]; then
     source /opt/intel/oneapi/compiler/latest/env/vars.sh
     source /opt/intel/oneapi/mpi/latest/env/vars.sh
     export BUILD_PARALLELISM=4
-    export ENV_CTEST_EXCLUDES="CI_exclude_fv3jedi|CI_exclude_hang_gnssro_ukmo_intel_O1|CI_exclude_segfault_camelemis_atlas"
+    export ENV_CTEST_EXCLUDES="${ENV_CTEST_EXCLUDES}|ci_oneapi_disable|CI_exclude_fv3jedi|CI_exclude_hang_gnssro_ukmo_intel_O1|CI_exclude_segfault_camelemis_atlas"
 fi
 
 if [ $JEDI_COMPILER = "clang" ]; then
     export CC=/usr/bin/clang
     export CXX=/usr/bin/clang++
+    export ENV_CTEST_EXCLUDES="${ENV_CTEST_EXCLUDES}|ci_clang_disable"
 fi
 
 if [ $JEDI_COMPILER = "gcc" ] || [ $JEDI_COMPILER = "gcc11" ]; then
     export BUILD_PARALLELISM=4
+    export ENV_CTEST_EXCLUDES="${ENV_CTEST_EXCLUDES}|ci_gcc_disable"
 fi
 
 
