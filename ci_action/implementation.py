@@ -311,7 +311,7 @@ def prepare_and_launch_ci_test(
                 test_annotations.next_ci_suffix)
             integration_run_info = f' - integration: https://github.com/JCSDA-internal/jedi-bundle/runs/{integration_run_id}'
         LOG.info(f'{timer.checkpoint()}\nCreated check runs for build_environment \n'
-                 f'{unit_run_info}}\n{integration_run_info}')
+                 f'{unit_run_info}\n{integration_run_info}')
 
         debug_time = 60 * 30 if test_annotations.debug_mode else 0
         build_identity = (
