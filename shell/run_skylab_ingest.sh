@@ -129,7 +129,8 @@ for repo in r2d2 r2d2-client r2d2-data ewok simobs static-data skylab; do
 done
 
 # pip may not be present inside the venv in minimal spack containers
-curl -sS https://bootstrap.pypa.io/get-pip.py | python3
+# TODO: I dont think we need this anymore with spack activation ...
+#curl -sS https://bootstrap.pypa.io/get-pip.py | python3
 
 # Install in dependency order. The server's setup.py intentionally omits
 # the r2d2 library from install_requires, so both must be installed
