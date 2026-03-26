@@ -53,6 +53,9 @@ class TestAnnotations(NamedTuple):
     # not read from the cache and will build all code.
     skip_cache: str
 
+    # If True, a 2-hour sleep will be added to the conclusion of a test.
+    debug_mode: bool
+
     # Suffix used to select the CI environment. May be an empty sting or
     # may be "-next" meaning that the "<env-name>-next" environment will be
     # used for testing.
