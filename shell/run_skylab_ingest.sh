@@ -30,6 +30,44 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export JEDI_COMPILER="${JEDI_COMPILER:-gcc}"
 source "${SCRIPT_DIR}/environment.sh"
 
+# GitHub App credentials for cloning private repos. These are normally
+# configured by bootstrap_test.sh, but we validate and set up askPass
+# here as well so the script can run standalone.
+valid_environment_found="yes"
+
+if [ -z "${GITHUB_APP_PRIVATE_KEY}" ]; then
+    echo "Var GITHUB_APP_PRIVATE_KEY must be set (text of the key or a file path)"
+    valid_environment_found="no"
+fi
+if [ -z "${GITHUB_APP_ID}" ]; then
+    echo "Var GITHUB_APP_ID must be set (GitHub App ID)"
+    valid_environment_found="no"
+fi
+if [ -z "${GITHUB_INSTALL_ID}" ]; then
+    echo "Var GITHUB_INSTALL_ID must be set (GitHub App install ID)"
+    valid_environment_found="no"
+fi
+
+if [ "${valid_environment_found}" == "no" ]; then
+    echo "Missing required GitHub credentials. Cannot clone private repos."
+    exit 1
+fi
+
+# Ensure the private key is a file (bootstrap_test.sh may have already done this).
+if [ ! -f "${GITHUB_APP_PRIVATE_KEY}" ]; then
+    key_file=$(mktemp -u)
+    echo "${GITHUB_APP_PRIVATE_KEY}" > "${key_file}"
+    export GITHUB_APP_PRIVATE_KEY="${key_file}"
+fi
+
+# Configure git askPass for GitHub App authentication.
+if [ -f "${SCRIPT_DIR}/git_askPass_app_credentials.py" ]; then
+    cp "${SCRIPT_DIR}/git_askPass_app_credentials.py" /bin/git_askPass_app_credentials.py
+    chmod +x /bin/git_askPass_app_credentials.py
+    git config --global core.askPass /bin/git_askPass_app_credentials.py
+fi
+git config --global --add safe.directory '*'
+
 # Skylab workflow paths
 # TODO: these should be set in environment.sh?
 # TODO: do we want them in $WORKDIR?
@@ -71,6 +109,9 @@ Skylab Ingest Configuration:
   R2D2_SERVER_HOST=${R2D2_SERVER_HOST}:${R2D2_SERVER_PORT}
   JEDI_COMPILER=${JEDI_COMPILER}
   BUILD_PARALLELISM=${BUILD_PARALLELISM}
+  GITHUB_APP_ID=${GITHUB_APP_ID}
+  GITHUB_INSTALL_ID=${GITHUB_INSTALL_ID}
+  GITHUB_APP_PRIVATE_KEY_FILE=${GITHUB_APP_PRIVATE_KEY}
 EOF
 
 set -x
@@ -229,6 +270,7 @@ sleep 10
 # 7. Poll experiment status
 # ---------------------------------------------------------------------------
 
+# TODO: not sure if we will us a status, but this needs to move.
 STATUS_SCRIPT="${JEDI_WORKFLOW}/skylab/.github/workflows/status.sh"
 
 # First poll: 1 hour timeout for ingest tasks
