@@ -203,13 +203,22 @@ def prepare_and_launch_ci_test(
 
     # Rewrite the bundle cmake file with the selected projects for the first build stage.
     with open(bundle_file_unittest, 'w') as f:
-        bundle.rewrite_build_group_whitelist(
-            file_object=f,
-            enabled_bundles=test_dependencies,
-            build_group_commit_map=repo_to_commit_hash,
-        )
-        LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
-                 f'bundles: {test_dependencies}.')
+        if test_dependencies:
+            bundle.rewrite_build_group_whitelist(
+                file_object=f,
+                enabled_bundles=test_dependencies,
+                build_group_commit_map=repo_to_commit_hash,
+            )
+            LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
+                    f'bundles: {test_dependencies}.')
+        else:
+            # When no test dependencies are specified assume we want to build the full bundle (empty blacklist)
+            bundle.rewrite_build_group_blacklist(
+                file_object=f,
+                disabled_bundles=set(),
+                build_group_commit_map=repo_to_commit_hash,
+            )
+            LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists.')
 
     # Create an integration test bundle definition if necessary.
     if test_strategy == 'all':
