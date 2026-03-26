@@ -93,7 +93,6 @@ def prepare_and_launch_ci_test(
     infra_config,
     config,
     bundle_repo_path,
-    target_repo_path,
 ):
     """The main function that will be called to prepare and launch the CI test.
 
@@ -106,7 +105,6 @@ def prepare_and_launch_ci_test(
         config: The GitHub action environment configuration including
                 PR metadata and passed config variables.
         bundle_repo_path: The path to the bundle repository.
-        target_repo_path: The path to the target repository.
 
     Returns:
         A 2-tuple of lists of strings representing errors:

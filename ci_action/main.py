@@ -171,9 +171,6 @@ def main():
         return 0
 
     workspace_dir = os.environ.get('GITHUB_WORKSPACE', os.getcwd())
-    target_repo_full_path = os.path.join(
-        workspace_dir, os.environ['TARGET_REPO_DIR'])
-
     # Get environment attributes set by GitHub.
     env_config = get_environment_config()
 
@@ -184,8 +181,7 @@ def main():
     errors, non_blocking_errors = ci_implementation.prepare_and_launch_ci_test(
         infra_config=JEDI_CI_INFRA_CONFIG,
         config=env_config,
-        bundle_repo_path=os.path.join(workspace_dir, 'bundle'),
-        target_repo_path=target_repo_full_path)
+        bundle_repo_path=os.path.join(workspace_dir, 'bundle'))
 
     # The following block is used to format a list of errors that will be logged to the GitHub
     # action log. The output should look something like this.
