@@ -57,7 +57,7 @@ def cancel_prior_jobs_and_check_runs(
     config,
 ):
     """Cancel prior unfinished jobs and check runs for the PR."""
-     # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
+    # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
     # This process is done in parallel to save time on slow network-bound operations.
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
 
@@ -210,9 +210,9 @@ def prepare_and_launch_ci_test(
                 build_group_commit_map=repo_to_commit_hash,
             )
             LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
-                    f'bundles: {test_dependencies}.')
+                     f'bundles: {test_dependencies}.')
         else:
-            # When no test dependencies are specified assume we want to build the full bundle (empty blacklist)
+            # With no test dependencies, build the full bundle (empty blacklist).
             bundle.rewrite_build_group_blacklist(
                 file_object=f,
                 disabled_bundles=set(),
@@ -290,6 +290,8 @@ def prepare_and_launch_ci_test(
         unit_run_id = 0
 
         # Create GitHub check runs for the unit and integration tests (as required by strategy).
+        unit_run_info = ""
+        integration_run_info = ""
         if test_strategy in ('all', 'unit'):
             unit_run_id = github_client.create_check_run(
                 github_client.UNIT_TEST_PREFIX,
@@ -298,6 +300,7 @@ def prepare_and_launch_ci_test(
                 config['owner'],
                 config['trigger_commit'],
                 test_annotations.next_ci_suffix)
+            unit_run_info = f' - unit: https://github.com/JCSDA-internal/jedi-bundle/runs/{unit_run_id}'
         if test_strategy in ('all', 'integration'):
             integration_run_id = github_client.create_check_run(
                 github_client.INTEGRATION_TEST_PREFIX,
@@ -306,8 +309,9 @@ def prepare_and_launch_ci_test(
                 config['owner'],
                 config['trigger_commit'],
                 test_annotations.next_ci_suffix)
+            integration_run_info = f' - integration: https://github.com/JCSDA-internal/jedi-bundle/runs/{integration_run_id}'
         LOG.info(f'{timer.checkpoint()}\nCreated check runs for build_environment \n'
-                 f' - unit: {unit_run_id}\n - integration: {integration_run_id}.')
+                 f'{unit_run_info}}\n{integration_run_info}')
 
         debug_time = 60 * 30 if test_annotations.debug_mode else 0
         build_identity = (
