@@ -271,14 +271,88 @@ sleep 10
 # 7. Poll experiment status
 # ---------------------------------------------------------------------------
 
-# TODO: not sure if we will us a status, but this needs to move.
-STATUS_SCRIPT="${JEDI_WORKFLOW}/skylab/.github/workflows/status.sh"
+# Get the suite name registered by create_experiment.py
+SUITE=$(echo $(ecflow_client --suites) | grep -o '[^ ]*$')
+echo "Monitoring EWOK experiment suite: ${SUITE}"
 
-# First poll: 1 hour timeout for ingest tasks
-time "${STATUS_SCRIPT}" 3600
+# --- Phase 1: Wait for ingest storeObservations tasks (1 hour timeout) ---
+INGEST_TIMEOUT=3600
 
-# Second poll: 2 hour timeout for full suite completion
-time "${STATUS_SCRIPT}" 7200
+# Suspend endCycle so individual tasks can be inspected before the suite moves on
+ecflow_client --suspend=/${SUITE}/ingest/endCycle
+
+# Build a list of storeObservations tasks from the ecFlow definition
+obstypes=$(ecflow_client --get=/${SUITE}/ingest \
+    | grep -i 'task storeObservations_' \
+    | awk '{print $2}' \
+    | sed 's/storeObservations_//g')
+TASKS=()
+for obstype in ${obstypes[@]}; do
+    TASKS+=("/${SUITE}/ingest/obs_${obstype}/storeObservations_${obstype}")
+done
+echo "Watching ${#TASKS[@]} ingest tasks: ${TASKS[*]}"
+
+while [ "${INGEST_TIMEOUT}" -gt 0 ]; do
+    complete=0
+    for TASK in "${TASKS[@]}"; do
+        task_state=$(ecflow_client --query state "${TASK}")
+        echo "${TASK} is ${task_state} : ${INGEST_TIMEOUT}s remaining"
+        case "${task_state}" in
+            "aborted")
+                echo "Failed: ${TASK} aborted"
+                exit 1
+                ;;
+            "complete")
+                (( complete+=1 ))
+                ;;
+        esac
+    done
+
+    if [ "${complete}" -eq "${#TASKS[@]}" ]; then
+        echo "All ${#TASKS[@]} ingest tasks complete"
+        ecflow_client --resume=/${SUITE}/ingest/endCycle
+        break
+    fi
+
+    (( INGEST_TIMEOUT-=30 ))
+    sleep 30
+done
+
+if [ "${INGEST_TIMEOUT}" -le 0 ]; then
+    echo "Timeout waiting for ingest tasks"
+    exit 1
+fi
+
+# --- Phase 2: Wait for full suite completion (2 hour timeout) ---
+SUITE_TIMEOUT=7200
+
+suite_state=$(ecflow_client --query state /${SUITE})
+
+while [ "${suite_state}" != "aborted" ] && [ "${SUITE_TIMEOUT}" -gt 0 ]; do
+    echo "${SUITE} is ${suite_state} : ${SUITE_TIMEOUT}s remaining"
+
+    ewok_status=$(ecflow_client --query variable /${SUITE}:EWOK_STATUS)
+    if [ "${ewok_status}" = "Finished" ]; then
+        echo "Completed: ${SUITE} EWOK_STATUS=${ewok_status}"
+        break
+    fi
+
+    (( SUITE_TIMEOUT-=30 ))
+    sleep 30
+    suite_state=$(ecflow_client --query state /${SUITE})
+done
+
+if [ "${suite_state}" = "aborted" ]; then
+    echo "Failed: ${SUITE} is ${suite_state}"
+    exit 1
+fi
+
+if [ "${SUITE_TIMEOUT}" -le 0 ]; then
+    echo "Timeout: ${SUITE} is ${suite_state}"
+    exit 1
+fi
+
+ecflow_client --resume=/${SUITE}/finishExperiment
 
 # ---------------------------------------------------------------------------
 # 8. Cleanup
