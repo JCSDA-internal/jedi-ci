@@ -51,11 +51,48 @@ def upload_to_aws(bucket_name, s3_client, tarball_path, s3_file):
     return s3_path
 
 
+def cancel_prior_jobs_and_check_runs(
+    non_blocking_errors,
+    infra_config,
+    config,
+):
+    """Cancel prior unfinished jobs and check runs for the PR."""
+     # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
+    # This process is done in parallel to save time on slow network-bound operations.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+
+        # Submit operation: cancel prior unfinished AWS Batch jobs for the PR.
+        cxl_batch_future = executor.submit(
+            aws_client.cancel_prior_batch_jobs,
+            job_queue=infra_config['batch_queue'],
+            repo_name=config['repo_name'],
+            pr=config["pull_request_number"],
+        )
+
+        # Submit operation: cancel unfinished check runs for the PR.
+        cxl_checkrun_future = executor.submit(
+            github_client.cancel_prior_unfinished_check_runs,
+            repo=config['repo_name'],
+            owner=config['owner'],
+            pr_number=config["pull_request_number"],
+        )
+
+        # Wait for the cancel operations to complete.
+        for future in concurrent.futures.as_completed([cxl_batch_future, cxl_checkrun_future]):
+            try:
+                future.result()
+            except Exception as e:
+                if future is cxl_batch_future:
+                    non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
+                else:
+                    non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
+    return non_blocking_errors
+
+
 def prepare_and_launch_ci_test(
     infra_config,
     config,
     bundle_repo_path,
-    target_repo_path,
 ):
     """The main function that will be called to prepare and launch the CI test.
 
@@ -68,7 +105,6 @@ def prepare_and_launch_ci_test(
         config: The GitHub action environment configuration including
                 PR metadata and passed config variables.
         bundle_repo_path: The path to the bundle repository.
-        target_repo_path: The path to the target repository.
 
     Returns:
         A 2-tuple of lists of strings representing errors:
@@ -87,31 +123,45 @@ def prepare_and_launch_ci_test(
 
     timer = TimeCheckpointer()  # Timer for logging.
 
-    # Fetch config from the pull request data
-    repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}.git'
-    try:
-        test_annotations = pr_resolve.read_test_annotations(
-            repo_uri=repo_uri,
-            pr_number=config['pull_request_number'],
-            pr_payload=config['pr_payload'],
-            testmode=config['self_test'],
+    is_scheduled = config.get('is_scheduled', False)
+
+    if is_scheduled:
+        test_annotations = pr_resolve.TestAnnotations(
+            build_group_map={},  # No build group for nightly runs.
+            skip_cache='false',
+            debug_mode=False,
+            next_ci_suffix='',  # No suffix, use primary build environment.
+            test_select='random',
+            jedi_bundle_branch=None,  # If set this overrides the action config.
         )
-    except pr_resolve.Exception as e:
-        blocking_errors.append(f"Error reading test annotations: {e}")
-        return blocking_errors, non_blocking_errors
+        LOG.info(f'{timer.checkpoint()}\nNightly run — using default test annotations.')
 
-    LOG.info('test_annotations:')
-    annotations_pretty = pprint.pformat(test_annotations._asdict())
-    LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
+    # Assume this is a Pull Request.
+    else:
+        repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}.git'
+        try:
+            test_annotations = pr_resolve.read_test_annotations(
+                repo_uri=repo_uri,
+                pr_number=config['pull_request_number'],
+                pr_payload=config['pr_payload'],
+                testmode=config['self_test'],
+            )
+        except pr_resolve.Exception as e:
+            blocking_errors.append(f"Error reading test annotations: {e}")
+            return blocking_errors, non_blocking_errors
 
-    # Check draft PR run status.
-    if config.get('pr_payload', {}).get('draft') and not test_annotations.run_on_draft:
-        LOG.info('\n\nTests are not launched for draft PRs by default.\n'
-                 'To enable testing on draft PRs, add the following annotation to the PR:\n'
-                 '```\n'
-                 'run-ci-on-draft = true\n'
-                 '```\n')
-        return blocking_errors, non_blocking_errors
+        LOG.info('test_annotations:')
+        annotations_pretty = pprint.pformat(test_annotations._asdict())
+        LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
+
+        # Check draft PR run status.
+        if config.get('pr_payload', {}).get('draft') and not test_annotations.run_on_draft:
+            LOG.info('\n\nTests are not launched for draft PRs by default.\n'
+                     'To enable testing on draft PRs, add the following annotation to the PR:\n'
+                     '```\n'
+                     'run-ci-on-draft = true\n'
+                     '```\n')
+            return blocking_errors, non_blocking_errors
 
     bundle_branch = config['bundle_branch']  # This is the default branch to use for the bundle.
     if test_annotations.jedi_bundle_branch:
@@ -188,8 +238,7 @@ def prepare_and_launch_ci_test(
     # Upload the bundle to S3.
     s3_file = (
         f'ci_action_bundles/{config["repository"]}/'
-        f'{config["pull_request_number"]}-'
-        f'{config["trigger_commit"]}-bundle.tar.gz'
+        f'{config["build_id_name"]}-bundle.tar.gz'
     )
     s3_client = boto3.client('s3')
     configured_bundle_tarball_s3_path = upload_to_aws(
@@ -205,35 +254,12 @@ def prepare_and_launch_ci_test(
     else:
         chosen_build_environments = [test_select]
 
-    # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
-    # This process is done in parallel to save time on slow network-bound operations.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-
-        # Submit operation: cancel prior unfinished AWS Batch jobs for the PR.
-        cxl_batch_future = executor.submit(
-            aws_client.cancel_prior_batch_jobs,
-            job_queue=infra_config['batch_queue'],
-            repo_name=config['repo_name'],
-            pr=config["pull_request_number"],
+    if not is_scheduled:
+        non_blocking_errors = cancel_prior_jobs_and_check_runs(
+            non_blocking_errors,
+            infra_config,
+            config,
         )
-
-        # Submit operation: cancel unfinished check runs for the PR.
-        cxl_checkrun_future = executor.submit(
-            github_client.cancel_prior_unfinished_check_runs,
-            repo=config['repo_name'],
-            owner=config['owner'],
-            pr_number=config["pull_request_number"],
-        )
-
-        # Wait for the cancel operations to complete.
-        for future in concurrent.futures.as_completed([cxl_batch_future, cxl_checkrun_future]):
-            try:
-                future.result()
-            except Exception as e:
-                if future is cxl_batch_future:
-                    non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
-                else:
-                    non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
 
     # This is a constructor for the configuration needed to submit AWS Batch jobs.
     # This constructor reads configuration from the environment and must be
@@ -277,8 +303,7 @@ def prepare_and_launch_ci_test(
         debug_time = 60 * 30 if test_annotations.debug_mode else 0
         build_identity = (
             f'{config["repo_name"]}-'
-            f'{config["pull_request_number"]}-'
-            f'{config["trigger_commit_short"]}-{build_environment}'
+            f'{config["build_id_name"]}-{build_environment}'
         )
         repo_name_full = (
             f'{config["owner"]}/{config["repo_name"]}'
@@ -290,8 +315,7 @@ def prepare_and_launch_ci_test(
             ),
             repo_name=config['repo_name'],
             repo_name_full=repo_name_full,
-            commit=config['trigger_commit_short'],
-            pr=config['pull_request_number'],
+            build_id=config['build_id_name'],
             configured_bundle_tarball=configured_bundle_tarball_s3_path,
             debug_time_seconds=debug_time,
             build_identity=build_identity,

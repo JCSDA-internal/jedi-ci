@@ -6,6 +6,7 @@ implementation of the CI action.
 """
 
 import argparse
+import datetime
 import json
 import logging
 import os
@@ -88,13 +89,29 @@ def get_environment_config():
     with open(github_event_path, 'r') as f:
         event = json.load(f)
 
+    event_name = os.environ.get('GITHUB_EVENT_NAME', '')
     if event.get('pull_request'):
         branch_name = event['pull_request']['head']['ref']
         pull_request_number = event['pull_request'].get('number', -1)
         pr_payload = event['pull_request']
         trigger_commit = event['pull_request'].get('head', {}).get('sha', '')
+        build_id_name = f'{pull_request_number}-{trigger_commit[:7]}'
+        is_scheduled = False
+    elif event_name in ['schedule', 'workflow_dispatch']:
+        branch_name = os.environ.get('GITHUB_REF_NAME', 'develop')
+        pull_request_number = 0
+        pr_payload = None
+        trigger_commit = os.environ.get('GITHUB_SHA', '')
+        is_scheduled = True
+        if not trigger_commit:
+            raise ValueError(
+                'GITHUB_SHA is required for scheduled runs but was not set')
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime('%H%M')
+        build_id_name = f'scheduled-{timestamp}'
     else:
-        raise ValueError(f'No pull request found in event; {event}')
+        raise ValueError(
+            f'Unsupported event: expected pull_request or schedule, '
+            f'got "{event_name}"; payload keys: {list(event.keys())}')
 
     default_bundle_branch = os.environ.get('BUNDLE_BRANCH', 'develop')
     bundle_repository = os.environ.get(
@@ -133,6 +150,7 @@ def get_environment_config():
     build_cache_bucket = os.environ.get('BUILD_CACHE_BUCKET', 'jcsda-usaf-ci-build-cache')
 
     config = {
+        'is_scheduled': is_scheduled,
         'repository': repository,
         'owner': owner,
         'repo_name': repo_name,
@@ -140,6 +158,7 @@ def get_environment_config():
         'github_event_path': github_event_path,
         'branch_name': branch_name,
         'pull_request_number': pull_request_number,
+        'build_id_name': build_id_name,
         'pr_payload': pr_payload,
         'trigger_commit': trigger_commit,
         'trigger_commit_short': trigger_commit[:7],
@@ -171,8 +190,6 @@ def main():
         return 0
 
     workspace_dir = os.environ.get('GITHUB_WORKSPACE', os.getcwd())
-    target_repo_full_path = os.path.join(
-        workspace_dir, os.environ['TARGET_REPO_DIR'])
 
     # Get environment attributes set by GitHub.
     env_config = get_environment_config()
@@ -184,8 +201,7 @@ def main():
     errors, non_blocking_errors = ci_implementation.prepare_and_launch_ci_test(
         infra_config=JEDI_CI_INFRA_CONFIG,
         config=env_config,
-        bundle_repo_path=os.path.join(workspace_dir, 'bundle'),
-        target_repo_path=target_repo_full_path)
+        bundle_repo_path=os.path.join(workspace_dir, 'bundle'))
 
     # The following block is used to format a list of errors that will be logged to the GitHub
     # action log. The output should look something like this.
