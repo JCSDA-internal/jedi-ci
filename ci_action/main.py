@@ -143,8 +143,10 @@ def get_environment_config():
         test_deps = unittest_deps
         test_strategy = 'all'
 
-    # Ensure that the test dependencies include the target project.
-    test_deps = [d for d in set(test_deps + [target_project_name])]
+    # Ensure that the test dependencies include the target project. If the dependencies are empty,
+    # assume we want to build the full bundle (empty blacklist) and skip this consistency check.
+    if test_deps:
+        test_deps = [d for d in set(test_deps + [target_project_name])]
 
     # Get the build cache bucket.
     build_cache_bucket = os.environ.get('BUILD_CACHE_BUCKET', 'jcsda-usaf-ci-build-cache')
