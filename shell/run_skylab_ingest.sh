@@ -31,6 +31,8 @@ export JEDI_COMPILER="${JEDI_COMPILER:-gcc}"
 source "${SCRIPT_DIR}/environment.sh"
 
 # Skylab workflow paths
+# TODO: these should be set in environment.sh?
+# TODO: do we want them in $WORKDIR?
 export JEDI_WORKFLOW="${WORKDIR}/jedi-workflow"
 export EWOK_WORKDIR="${WORKDIR}/workdir"
 export EWOK_FLOWDIR="${WORKDIR}/ecflow"
@@ -238,12 +240,6 @@ time "${STATUS_SCRIPT}" 7200
 # ---------------------------------------------------------------------------
 # 8. Cleanup
 # ---------------------------------------------------------------------------
-
-killall -e fv3jedi_var.x 2>/dev/null || true
-killall -e fv3jedi_forecast.x 2>/dev/null || true
-killall -e ecflow_client 2>/dev/null || true
-sync
-sleep 5
 
 ecflow_stop.sh -p ${ECF_PORT} || true
 
