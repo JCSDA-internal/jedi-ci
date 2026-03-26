@@ -53,9 +53,6 @@ class TestAnnotations(NamedTuple):
     # not read from the cache and will build all code.
     skip_cache: str
 
-    # Should draft pull request run all tests. Defaults to False.
-    run_on_draft: bool
-
     # If True, a 2-hour sleep will be added to the conclusion of a test.
     debug_mode: bool
 
@@ -72,6 +69,9 @@ class TestAnnotations(NamedTuple):
     # is not set (or set to an empty string) the test runner will checkout the
     # default branch. This branch must exist in `JCSDA-internal/jedi-bundle`.
     jedi_bundle_branch: str
+
+    # Should draft pull request run all tests. Defaults to False.
+    run_on_draft: bool = False
 
 
 def read_test_annotations(
@@ -168,11 +168,11 @@ def read_test_annotations(
     return TestAnnotations(
         build_group_map=build_group_pr_map,
         skip_cache=skip_cache,
-        run_on_draft=run_on_draft,
         debug_mode=debug_mode,
         next_ci_suffix=next_ci_suffix,
         test_select=test_select,
         jedi_bundle_branch=bundle_branch,
+        run_on_draft=run_on_draft,
     )
 
 

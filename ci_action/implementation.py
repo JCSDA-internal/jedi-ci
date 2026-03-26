@@ -51,6 +51,44 @@ def upload_to_aws(bucket_name, s3_client, tarball_path, s3_file):
     return s3_path
 
 
+def cancel_prior_jobs_and_check_runs(
+    non_blocking_errors,
+    infra_config,
+    config,
+):
+    """Cancel prior unfinished jobs and check runs for the PR."""
+    # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
+    # This process is done in parallel to save time on slow network-bound operations.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+
+        # Submit operation: cancel prior unfinished AWS Batch jobs for the PR.
+        cxl_batch_future = executor.submit(
+            aws_client.cancel_prior_batch_jobs,
+            job_queue=infra_config['batch_queue'],
+            repo_name=config['repo_name'],
+            pr=config["pull_request_number"],
+        )
+
+        # Submit operation: cancel unfinished check runs for the PR.
+        cxl_checkrun_future = executor.submit(
+            github_client.cancel_prior_unfinished_check_runs,
+            repo=config['repo_name'],
+            owner=config['owner'],
+            pr_number=config["pull_request_number"],
+        )
+
+        # Wait for the cancel operations to complete.
+        for future in concurrent.futures.as_completed([cxl_batch_future, cxl_checkrun_future]):
+            try:
+                future.result()
+            except Exception as e:
+                if future is cxl_batch_future:
+                    non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
+                else:
+                    non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
+    return non_blocking_errors
+
+
 def prepare_and_launch_ci_test(
     infra_config,
     config,
@@ -205,35 +243,11 @@ def prepare_and_launch_ci_test(
     else:
         chosen_build_environments = [test_select]
 
-    # Use a thread pool to cancel prior unfinished jobs and their associated check runs.
-    # This process is done in parallel to save time on slow network-bound operations.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-
-        # Submit operation: cancel prior unfinished AWS Batch jobs for the PR.
-        cxl_batch_future = executor.submit(
-            aws_client.cancel_prior_batch_jobs,
-            job_queue=infra_config['batch_queue'],
-            repo_name=config['repo_name'],
-            pr=config["pull_request_number"],
-        )
-
-        # Submit operation: cancel unfinished check runs for the PR.
-        cxl_checkrun_future = executor.submit(
-            github_client.cancel_prior_unfinished_check_runs,
-            repo=config['repo_name'],
-            owner=config['owner'],
-            pr_number=config["pull_request_number"],
-        )
-
-        # Wait for the cancel operations to complete.
-        for future in concurrent.futures.as_completed([cxl_batch_future, cxl_checkrun_future]):
-            try:
-                future.result()
-            except Exception as e:
-                if future is cxl_batch_future:
-                    non_blocking_errors.append(f"Error cancelling prior batch jobs: {e}")
-                else:
-                    non_blocking_errors.append(f"Error cancelling prior check runs: {e}")
+    non_blocking_errors = cancel_prior_jobs_and_check_runs(
+        non_blocking_errors,
+        infra_config,
+        config,
+    )
 
     # This is a constructor for the configuration needed to submit AWS Batch jobs.
     # This constructor reads configuration from the environment and must be
