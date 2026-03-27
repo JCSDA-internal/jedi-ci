@@ -152,7 +152,8 @@ def get_environment_config():
     # Get the build cache bucket.
     build_cache_bucket = os.environ.get('BUILD_CACHE_BUCKET', 'jcsda-usaf-ci-build-cache')
 
-    print(f'GITHUB_REF: {os.environ.get("GITHUB_REF")}, GITHUB_REF_NAME: {os.environ.get("GITHUB_REF_NAME")}')
+    print(f'GITHUB_REF: {os.environ.get("GITHUB_REF")}')
+    print(f'GITHUB_REF_NAME: {os.environ.get("GITHUB_REF_NAME")}')
 
     config = {
         'is_scheduled': is_scheduled,
