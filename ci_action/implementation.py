@@ -125,19 +125,8 @@ def prepare_and_launch_ci_test(
 
     is_scheduled = config.get('is_scheduled', False)
 
-    if is_scheduled:
-        test_annotations = pr_resolve.TestAnnotations(
-            build_group_map={},  # No build group for nightly runs.
-            skip_cache='false',
-            debug_mode=False,
-            next_ci_suffix='',  # No suffix, use primary build environment.
-            test_select='random',
-            jedi_bundle_branch=None,  # If set this overrides the action config.
-        )
-        LOG.info(f'{timer.checkpoint()}\nNightly run — using default test annotations.')
-
-    # Assume this is a Pull Request.
-    else:
+    # test_annotations analysis for pull requests.
+    if config["pull_request_number"] and not is_scheduled:
         repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}.git'
         try:
             test_annotations = pr_resolve.read_test_annotations(
@@ -162,6 +151,18 @@ def prepare_and_launch_ci_test(
                      'run-ci-on-draft = true\n'
                      '```\n')
             return blocking_errors, non_blocking_errors
+
+    # Scheduled or triggered tests have no annotations and rely on default values set below.
+    else:
+        test_annotations = pr_resolve.TestAnnotations(
+            build_group_map={},  # No build group for nightly runs.
+            skip_cache='false',
+            debug_mode=False,
+            next_ci_suffix='',  # No suffix, use primary build environment.
+            test_select='random',
+            jedi_bundle_branch=None,  # If set this overrides the action config.
+        )
+        LOG.info(f'{timer.checkpoint()}\nNightly run — using default test annotations.')
 
     bundle_branch = config['bundle_branch']  # This is the default branch to use for the bundle.
     if test_annotations.jedi_bundle_branch:

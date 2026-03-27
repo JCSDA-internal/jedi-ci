@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import pathlib
+import pprint
 import subprocess
 import sys
 
@@ -151,6 +152,8 @@ def get_environment_config():
     # Get the build cache bucket.
     build_cache_bucket = os.environ.get('BUILD_CACHE_BUCKET', 'jcsda-usaf-ci-build-cache')
 
+    print(f'GITHUB_REF: {os.environ.get("GITHUB_REF")}, GITHUB_REF_NAME: {os.environ.get("GITHUB_REF_NAME")}')
+
     config = {
         'is_scheduled': is_scheduled,
         'repository': repository,
@@ -174,6 +177,8 @@ def get_environment_config():
         'target_project_name': target_project_name,
         'build_cache_bucket': build_cache_bucket
     }
+    print(f'config\n:{pprint.pformat(config)}')
+    raise ValueError('test')
     return config
 
 
