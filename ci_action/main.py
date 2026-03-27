@@ -205,7 +205,6 @@ def main():
         config=env_config,
         bundle_repo_path=os.path.join(workspace_dir, 'bundle'))
 
-
     # The following block is used to format a list of errors that will be logged to the GitHub
     # action log. The output should look something like this.
     # ...
