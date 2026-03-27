@@ -124,13 +124,13 @@ def prepare_and_launch_ci_test(
     timer = TimeCheckpointer()  # Timer for logging.
 
     is_scheduled = config.get('is_scheduled', False)
+    repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}'
 
     # test_annotations analysis for pull requests.
     if config["pull_request_number"] and not is_scheduled:
-        repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}.git'
         try:
             test_annotations = pr_resolve.read_test_annotations(
-                repo_uri=repo_uri,
+                repo_uri=f'{repo_uri}.git',
                 pr_number=config['pull_request_number'],
                 pr_payload=config['pr_payload'],
                 testmode=config['self_test'],
@@ -301,7 +301,7 @@ def prepare_and_launch_ci_test(
                 config['owner'],
                 config['trigger_commit'],
                 test_annotations.next_ci_suffix)
-            unit_run_info = f' - unit: https://github.com/JCSDA-internal/jedi-bundle/runs/{unit_run_id}'
+            unit_run_info = f' - unit: {repo_uri}/runs/{unit_run_id}'
         if test_strategy in ('all', 'integration'):
             integration_run_id = github_client.create_check_run(
                 github_client.INTEGRATION_TEST_PREFIX,
@@ -310,7 +310,7 @@ def prepare_and_launch_ci_test(
                 config['owner'],
                 config['trigger_commit'],
                 test_annotations.next_ci_suffix)
-            integration_run_info = f' - integration: https://github.com/JCSDA-internal/jedi-bundle/runs/{integration_run_id}'
+            integration_run_info = f' - integration: {repo_uri}/runs/{integration_run_id}'
         LOG.info(f'{timer.checkpoint()}\nCreated check runs for build_environment \n'
                  f'{unit_run_info}\n{integration_run_info}')
 
