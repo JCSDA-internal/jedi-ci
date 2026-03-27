@@ -152,8 +152,9 @@ def get_environment_config():
     # Get the build cache bucket.
     build_cache_bucket = os.environ.get('BUILD_CACHE_BUCKET', 'jcsda-usaf-ci-build-cache')
 
-    print(f'GITHUB_REF: {os.environ.get("GITHUB_REF")}')
-    print(f'GITHUB_REF_NAME: {os.environ.get("GITHUB_REF_NAME")}')
+    if repository == 'JCSDA-internal/jedi-bundle':
+        LOG.info(f'Overriding default branch "{default_bundle_branch}" with "{branch_name}"')
+        default_bundle_branch = branch_name
 
     config = {
         'is_scheduled': is_scheduled,
@@ -179,7 +180,6 @@ def get_environment_config():
         'build_cache_bucket': build_cache_bucket
     }
     print(f'config\n:{pprint.pformat(config)}')
-    raise ValueError('test')
     return config
 
 
