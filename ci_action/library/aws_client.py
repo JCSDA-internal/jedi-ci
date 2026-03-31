@@ -231,6 +231,10 @@ def submit_test_batch_job(
                     'name': 'TEST_SCRIPT',
                     'value': test_script,
                 },
+                {
+                    'name': 'CDASH_TEST_MODE',
+                    'value': 'Continuous',
+                },
             ],
         },
     )
