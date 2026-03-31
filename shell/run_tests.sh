@@ -266,7 +266,7 @@ util.check_run_start_test $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
 if [ "${UNIT_RUN_ID}" -eq 0 ]; then
     ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") --timeout 500 -C RelWithDebInfo -D ExperimentalTest
 else
-    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L $UNITTEST_TAG --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L "${UNITTEST_TAG}" --timeout 500 -C RelWithDebInfo -D ExperimentalTest
 fi
 
 # Upload ctests.
@@ -279,7 +279,7 @@ echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 # we can hard-code this failure rate to zero and remove this logic. Also
 # if the unit run id is 0 then the first run is an integration test.
 ALLOWED_UNIT_FAIL_RATE=0
-if [ $UNITTEST_TAG = 'ufo' ] || [ $UNIT_RUN_ID -eq 0 ]; then
+if [ "${UNITTEST_TAG}" = 'ufo' ] || [ "${UNIT_RUN_ID}" -eq 0 ]; then
     ALLOWED_UNIT_FAIL_RATE=0
 fi
 
