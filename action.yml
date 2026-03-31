@@ -20,7 +20,7 @@ inputs:
     required: false
     default: 'run_tests.sh'
   target_repo_dir:
-    description: 'Target repository directory'
+    description: 'Deprecated option, we no longer pre-clone the target repository.'
     required: false
     default: 'target_repository'
   bundle_repository:
@@ -68,7 +68,6 @@ runs:
     TARGET_PROJECT_NAME: ${{ inputs.target_project_name }}
     BUNDLE_BRANCH: ${{ inputs.bundle_branch }}
     TEST_SCRIPT: ${{ inputs.test_script }}
-    TARGET_REPO_DIR: ${{ inputs.target_repo_dir }}
     BUNDLE_REPOSITORY: ${{ inputs.bundle_repository }}
     CI_SELF_TEST: ${{ inputs.self_test }}
     JEDI_CI_TOKEN: ${{ inputs.jedi_ci_token }}
