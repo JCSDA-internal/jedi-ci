@@ -69,11 +69,7 @@ jobs:
           aws-region: us-east-2
 
       - name: Run JEDI CI
-        uses: JCSDA-internal/jedi-ci@feature/ci-v3
+        uses: JCSDA-internal/jedi-ci@develop
         with:
           container_version: 'latest'
-        env:
-          TARGET_REPO_DIR: target_repository
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JEDI_CI_TOKEN: ${{ steps.generate-token.outputs.token }}
-```
+          jedi_ci_token: ${{ steps.generate-token.outputs.token }}
