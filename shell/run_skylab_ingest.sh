@@ -188,7 +188,12 @@ export MYSQL_PORT=3306
 export MYSQL_DATABASE=r2d2
 
 mkdir -p /var/log/gunicorn
-gunicorn -c python:app.gunicorn app:APP > /var/log/gunicorn/r2d2.log 2>&1 &
+# The r2d2 library and r2d2-client both install a module named "r2d2".
+# The client is installed last so ewok/create_experiment.py see it, but
+# the server needs the library's R2D2Index. Prepend the library source
+# to PYTHONPATH for the gunicorn process only.
+PYTHONPATH="${JEDI_WORKFLOW}/r2d2/src:${PYTHONPATH}" \
+    gunicorn -c python:app.gunicorn app:APP > /var/log/gunicorn/r2d2.log 2>&1 &
 R2D2_PID=$!
 sleep 3
 
