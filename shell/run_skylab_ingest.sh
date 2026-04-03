@@ -72,6 +72,8 @@ git config --global --add safe.directory '*'
 # TODO: these should be set in environment.sh?
 # TODO: do we want them in $WORKDIR?
 export JEDI_WORKFLOW="${WORKDIR}/jedi-workflow"
+export JEDI_BUILD="${BUILD_DIR}"
+export JEDI_SRC="${JEDI_BUNDLE_DIR}"
 export EWOK_WORKDIR="${WORKDIR}/workdir"
 export EWOK_FLOWDIR="${WORKDIR}/ecflow"
 export EWOK_STATIC_DATA="${JEDI_WORKFLOW}/static-data/static"
