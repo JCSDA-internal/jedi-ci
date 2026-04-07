@@ -272,16 +272,14 @@ fi
 # Upload ctests.
 ctest -C RelWithDebInfo -M Experimental -T Submit --group Continuous
 
-echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
+# Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved. 
+find ${BUILD_DIR}/Testing -type f
+find "${BUILD_DIR}/Testing" -type f -name "Done.xml" -exec head -n5 {} \;
+CDASH_TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
+ls -al "${BUILD_DIR}/Testing/${CDASH_TEST_TAG}/"
+# End of debug info.
 
-# This is a temporary hack to allow UFO tests to pass until we resolve the
-# flakes and/or persistent failures. Once UFO testing failures are resolved
-# we can hard-code this failure rate to zero and remove this logic. Also
-# if the unit run id is 0 then the first run is an integration test.
-ALLOWED_UNIT_FAIL_RATE=0
-if [ "${UNITTEST_TAG}" = 'ufo' ] || [ "${UNIT_RUN_ID}" -eq 0 ]; then
-    ALLOWED_UNIT_FAIL_RATE=0
-fi
+echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 
 # Close out the check run for unit tests and mark success or failure.
 util.check_run_end $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID $ALLOWED_UNIT_FAIL_RATE
@@ -351,9 +349,6 @@ if [ $? -ne 0 ]; then
     exit 0
 fi
 
-# Delete test output to force re-generation of BuildID
-TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
-
 util.check_run_start_test $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 
 # Run integration tests.
@@ -362,12 +357,14 @@ ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|r
 # Upload ctests.
 ctest -C RelWithDebInfo -M "${CDASH_TEST_MODE}" -T Submit --group Continuous
 
+# Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved. 
 find ${BUILD_DIR}/Testing -type f
-find ${BUILD_DIR}/Testing -type f -exec head -n5 {} \;
+find "${BUILD_DIR}/Testing" -type f -name "Done.xml" -exec head -n5 {} \;
+CDASH_TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
+ls -al "${BUILD_DIR}/Testing/${CDASH_TEST_TAG}/"
+# End of debug info.
 
 echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
-TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
-ls -al "${BUILD_DIR}/Testing/${TEST_TAG}/"
 
 # Complete integration tests and allow a failure rate up to 3%
 
