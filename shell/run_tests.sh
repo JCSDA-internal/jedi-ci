@@ -68,11 +68,6 @@ if [ -z "${TRIGGER_REPO_FULL}" ]; then
     echo "Var TRIGGER_REPO_FULL must be set."
     valid_environment_found="no"
 fi
-if [ -z "${CDASH_TEST_MODE}" ]; then
-    # This variable is set by AWS Batch.
-    echo "Var CDASH_TEST_MODE must be set; allowed values include Continuous and Nightly."
-    valid_environment_found="no"
-fi
 
 
 if [ $valid_environment_found == "no" ]; then
@@ -94,7 +89,6 @@ OMPI_ALLOW_RUN_AS_ROOT=${OMPI_ALLOW_RUN_AS_ROOT}
 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=${OMPI_ALLOW_RUN_AS_ROOT_CONFIRM}
 OMPI_MCA_rmaps_base_oversubscribe=${OMPI_MCA_rmaps_base_oversubscribe}
 CI_SCRIPTS_DIR=${CI_SCRIPTS_DIR}
-CDASH_TEST_MODE=${CDASH_TEST_MODE}
 CC="${CC}"
 CXX="${CXX}"
 FC="${FC}"
@@ -270,13 +264,13 @@ util.check_run_start_test $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
 
 # Run unit tests.
 if [ "${UNIT_RUN_ID}" -eq 0 ]; then
-    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") --timeout 500 -C RelWithDebInfo -M "${CDASH_TEST_MODE}" -T Test
+    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") --timeout 500 -C RelWithDebInfo -M Experimental -T Test
 else
-    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L "${UNITTEST_TAG}" --timeout 500 -C RelWithDebInfo -M "${CDASH_TEST_MODE}" -T Test
+    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L "${UNITTEST_TAG}" --timeout 500 -C RelWithDebInfo -M Experimental -T Test
 fi
 
 # Upload ctests.
-ctest -C RelWithDebInfo -M "${CDASH_TEST_MODE}" -T Submit
+ctest -C RelWithDebInfo -M Experimental -T Submit --group Continuous
 
 echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 
@@ -363,10 +357,10 @@ TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
 util.check_run_start_test $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 
 # Run integration tests.
-ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -M "${CDASH_TEST_MODE}" -T Test
+ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -M Experimental -T Test
 
 # Upload ctests.
-ctest -C RelWithDebInfo -M "${CDASH_TEST_MODE}" -T Submit
+ctest -C RelWithDebInfo -M "${CDASH_TEST_MODE}" -T Submit --group Continuous
 
 find ${BUILD_DIR}/Testing -type f
 find ${BUILD_DIR}/Testing -type f -exec head -n5 {} \;
