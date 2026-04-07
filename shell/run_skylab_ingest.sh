@@ -267,6 +267,16 @@ if [ "${ACTIVE_COUNT}" -gt 3 ]; then
     done
 fi
 
+# Remove "bias ingest:" blocks from individual obs ingest YAMLs.
+# These trigger fetchObsBias tasks that require bias correction files
+# not available in the localhost R2D2 data store.
+for ingest_file in "${JEDI_WORKFLOW}"/skylab/obs/ingest/*_ingest.yaml; do
+    if grep -q '^bias ingest:' "${ingest_file}"; then
+        echo "Removing bias ingest block from $(basename ${ingest_file})"
+        sed -i '/^bias ingest:/,/^[^ ]/{ /^bias ingest:/d; /^[^ ]/!d; }' "${ingest_file}"
+    fi
+done
+
 echo "--- Ingest experiment YAML (dates: ${INIT_CYCLE} to ${LAST_CYCLE}) ---"
 grep -E 'init_cycle|last_cycle|!INCLUDE' "${INGEST_YAML}"
 echo "----------------------------------------------------------------------"
@@ -333,6 +343,9 @@ fi
 # --- Phase 2: Wait for full suite completion (2 hour timeout) ---
 SUITE_TIMEOUT=7200
 
+# Allow ecFlow to process the endCycle resume before polling
+sleep 10
+
 suite_state=$(ecflow_client --query state /${SUITE})
 
 while [ "${suite_state}" != "aborted" ] && [ "${SUITE_TIMEOUT}" -gt 0 ]; do
@@ -351,6 +364,9 @@ done
 
 if [ "${suite_state}" = "aborted" ]; then
     echo "Failed: ${SUITE} is ${suite_state}"
+    echo "--- Aborted tasks ---"
+    ecflow_client --get_state /${SUITE} | grep -i "aborted" || true
+    echo "---------------------"
     exit 1
 fi
 
