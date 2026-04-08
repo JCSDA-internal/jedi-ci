@@ -282,7 +282,7 @@ ls -al "${BUILD_DIR}/Testing/${CDASH_TEST_TAG}/"
 echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 
 # Close out the check run for unit tests and mark success or failure.
-export ALLOWED_UNIT_FAIL_RATE=0
+ALLOWED_UNIT_FAIL_RATE=0
 util.check_run_end $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID $ALLOWED_UNIT_FAIL_RATE
 
 # Decision point: if the unit tests failed then we should mark the integration
@@ -369,7 +369,7 @@ echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 
 # Complete integration tests and allow a failure rate up to 3%
 
-export ALLOWED_INTEGRATION_FAIL_RATE=0
+ALLOWED_INTEGRATION_FAIL_RATE=0
 util.check_run_end $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID $ALLOWED_INTEGRATION_FAIL_RATE
 
 # Upload codecov data if gcc compiler is used.
