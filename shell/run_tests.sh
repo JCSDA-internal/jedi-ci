@@ -270,7 +270,7 @@ else
 fi
 
 # Upload ctests.
-ctest -C RelWithDebInfo -M Experimental -T Submit --track Continuous --group Continuous
+ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous
 
 # Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved. 
 find ${BUILD_DIR}/Testing -type f
@@ -353,10 +353,10 @@ fi
 util.check_run_start_test $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 
 # Run integration tests.
-ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -M Experimental -T Test
+ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -T Test
 
 # Upload ctests.
-ctest -C RelWithDebInfo -M Experimental -T Submit --track Continuous --group Continuous
+ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous
 
 # Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved. 
 find ${BUILD_DIR}/Testing -type f
