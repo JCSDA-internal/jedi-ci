@@ -264,26 +264,25 @@ util.check_run_start_test $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
 
 # Run unit tests.
 if [ "${UNIT_RUN_ID}" -eq 0 ]; then
-    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|gsibec|rttov|oasim|ropp-ufo") --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|gsibec|rttov|oasim|ropp-ufo") --timeout 500 -C RelWithDebInfo -M Experimental -T Test
 else
-    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L $UNITTEST_TAG --timeout 500 -C RelWithDebInfo -D ExperimentalTest
+    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L "${UNITTEST_TAG}" --timeout 500 -C RelWithDebInfo -M Experimental -T Test
 fi
 
 # Upload ctests.
-ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous --track Continuous --group Continuous
+ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous
+
+# Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved. 
+find ${BUILD_DIR}/Testing -type f
+find "${BUILD_DIR}/Testing" -type f -name "Done.xml" -exec head -n5 {} \;
+CDASH_TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
+ls -al "${BUILD_DIR}/Testing/${CDASH_TEST_TAG}/"
+# End of debug info.
 
 echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 
-# This is a temporary hack to allow UFO tests to pass until we resolve the
-# flakes and/or persistent failures. Once UFO testing failures are resolved
-# we can hard-code this failure rate to zero and remove this logic. Also
-# if the unit run id is 0 then the first run is an integration test.
-ALLOWED_UNIT_FAIL_RATE=0
-if [ $UNITTEST_TAG = 'ufo' ] || [ $UNIT_RUN_ID -eq 0 ]; then
-    ALLOWED_UNIT_FAIL_RATE=0
-fi
-
 # Close out the check run for unit tests and mark success or failure.
+ALLOWED_UNIT_FAIL_RATE=0
 util.check_run_end $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID $ALLOWED_UNIT_FAIL_RATE
 
 # Decision point: if the unit tests failed then we should mark the integration
@@ -351,27 +350,26 @@ if [ $? -ne 0 ]; then
     exit 0
 fi
 
-# Delete test output to force re-generation of BuildID
-TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
-
 util.check_run_start_test $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 
 # Run integration tests.
-ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -D ExperimentalTest
+ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -T Test
 
 # Upload ctests.
-ctest -C RelWithDebInfo -D ExperimentalSubmit -M Continuous --track Continuous --group Continuous
+ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous
 
+# Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved. 
 find ${BUILD_DIR}/Testing -type f
-find ${BUILD_DIR}/Testing -type f -exec head -n5 {} \;
+find "${BUILD_DIR}/Testing" -type f -name "Done.xml" -exec head -n5 {} \;
+CDASH_TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
+ls -al "${BUILD_DIR}/Testing/${CDASH_TEST_TAG}/"
+# End of debug info.
 
 echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
-TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
-ls -al "${BUILD_DIR}/Testing/${TEST_TAG}/"
 
 # Complete integration tests and allow a failure rate up to 3%
 
-export ALLOWED_INTEGRATION_FAIL_RATE=0
+ALLOWED_INTEGRATION_FAIL_RATE=0
 util.check_run_end $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID $ALLOWED_INTEGRATION_FAIL_RATE
 
 # Upload codecov data if gcc compiler is used.
