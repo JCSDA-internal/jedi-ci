@@ -108,7 +108,7 @@ def get_environment_config():
             raise ValueError(
                 'GITHUB_SHA is required for scheduled runs but was not set')
         timestamp = datetime.datetime.now(datetime.timezone.utc).strftime('%H%M')
-        build_id_name = f'scheduled-{timestamp}'
+        build_id_name = f'{branch_name}-{timestamp}'
     else:
         raise ValueError(
             f'Unsupported event: expected pull_request or schedule, '
