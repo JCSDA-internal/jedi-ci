@@ -179,7 +179,7 @@ def get_environment_config():
         'target_project_name': target_project_name,
         'build_cache_bucket': build_cache_bucket
     }
-    print(f'config\n:{pprint.pformat(config)}')
+    LOG.info(f'config\n:{pprint.pformat(config)}')
     return config
 
 
