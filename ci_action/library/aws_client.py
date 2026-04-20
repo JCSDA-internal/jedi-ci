@@ -159,8 +159,7 @@ def submit_test_batch_job(
         config: BatchSubmitConfig,
         repo_name: str,
         repo_name_full: str,
-        commit: str,
-        pr: int,
+        build_id: str,
         configured_bundle_tarball: str,
         debug_time_seconds: int,
         build_identity: str,
@@ -173,7 +172,7 @@ def submit_test_batch_job(
         test_script: str,
 ):
     """Submit a CI batch job with updated environment variables."""
-    job_name = f'jedi-ci-{repo_name}-{pr}-{commit}-{config.build_environment}'
+    job_name = f'jedi-ci-{repo_name}-{build_id}-{config.build_environment}'
     return get_batch_client().submit_job(
         jobName=job_name,
         jobQueue=config.job_queue,

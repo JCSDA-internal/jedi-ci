@@ -6,10 +6,12 @@ implementation of the CI action.
 """
 
 import argparse
+import datetime
 import json
 import logging
 import os
 import pathlib
+import pprint
 import subprocess
 import sys
 
@@ -88,13 +90,29 @@ def get_environment_config():
     with open(github_event_path, 'r') as f:
         event = json.load(f)
 
+    event_name = os.environ.get('GITHUB_EVENT_NAME', '')
     if event.get('pull_request'):
         branch_name = event['pull_request']['head']['ref']
         pull_request_number = event['pull_request'].get('number', -1)
         pr_payload = event['pull_request']
         trigger_commit = event['pull_request'].get('head', {}).get('sha', '')
+        build_id_name = f'{pull_request_number}-{trigger_commit[:7]}'
+        is_scheduled = False
+    elif event_name in ['schedule', 'workflow_dispatch']:
+        branch_name = os.environ.get('GITHUB_REF_NAME', 'develop')
+        pull_request_number = 0
+        pr_payload = None
+        trigger_commit = os.environ.get('GITHUB_SHA', '')
+        is_scheduled = True
+        if not trigger_commit:
+            raise ValueError(
+                'GITHUB_SHA is required for scheduled runs but was not set')
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime('%H%M')
+        build_id_name = f'{branch_name}-{timestamp}'
     else:
-        raise ValueError(f'No pull request found in event; {event}')
+        raise ValueError(
+            f'Unsupported event: expected pull_request or schedule, '
+            f'got "{event_name}"; payload keys: {list(event.keys())}')
 
     default_bundle_branch = os.environ.get('BUNDLE_BRANCH', 'develop')
     bundle_repository = os.environ.get(
@@ -126,13 +144,20 @@ def get_environment_config():
         test_deps = unittest_deps
         test_strategy = 'all'
 
-    # Ensure that the test dependencies include the target project.
-    test_deps = [d for d in set(test_deps + [target_project_name])]
+    # Ensure that the test dependencies include the target project. If the dependencies are empty,
+    # assume we want to build the full bundle (empty blacklist) and skip this consistency check.
+    if test_deps:
+        test_deps = [d for d in set(test_deps + [target_project_name])]
 
     # Get the build cache bucket.
     build_cache_bucket = os.environ.get('BUILD_CACHE_BUCKET', 'jcsda-usaf-ci-build-cache')
 
+    if repository == 'JCSDA-internal/jedi-bundle':
+        LOG.info(f'Overriding default branch "{default_bundle_branch}" with "{branch_name}"')
+        default_bundle_branch = branch_name
+
     config = {
+        'is_scheduled': is_scheduled,
         'repository': repository,
         'owner': owner,
         'repo_name': repo_name,
@@ -140,6 +165,7 @@ def get_environment_config():
         'github_event_path': github_event_path,
         'branch_name': branch_name,
         'pull_request_number': pull_request_number,
+        'build_id_name': build_id_name,
         'pr_payload': pr_payload,
         'trigger_commit': trigger_commit,
         'trigger_commit_short': trigger_commit[:7],
@@ -153,6 +179,7 @@ def get_environment_config():
         'target_project_name': target_project_name,
         'build_cache_bucket': build_cache_bucket
     }
+    LOG.info(f'config\n:{pprint.pformat(config)}')
     return config
 
 
@@ -171,6 +198,7 @@ def main():
         return 0
 
     workspace_dir = os.environ.get('GITHUB_WORKSPACE', os.getcwd())
+
     # Get environment attributes set by GitHub.
     env_config = get_environment_config()
 

@@ -53,7 +53,7 @@ if [ $JEDI_COMPILER = "intel" ]; then
     source /opt/intel/oneapi/compiler/latest/env/vars.sh
     source /opt/intel/oneapi/mpi/latest/env/vars.sh
     export BUILD_PARALLELISM=4
-    export ENV_CTEST_EXCLUDES="${ENV_CTEST_EXCLUDES}|ci_oneapi_disable|CI_exclude_fv3jedi|CI_exclude_hang_gnssro_ukmo_intel_O1|CI_exclude_segfault_camelemis_atlas"
+    export ENV_CTEST_EXCLUDES="${ENV_CTEST_EXCLUDES}|ci_oneapi_disable|CI_exclude_fv3jedi"
 fi
 
 if [ $JEDI_COMPILER = "clang" ]; then

@@ -123,31 +123,46 @@ def prepare_and_launch_ci_test(
 
     timer = TimeCheckpointer()  # Timer for logging.
 
-    # Fetch config from the pull request data
-    repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}.git'
-    try:
-        test_annotations = pr_resolve.read_test_annotations(
-            repo_uri=repo_uri,
-            pr_number=config['pull_request_number'],
-            pr_payload=config['pr_payload'],
-            testmode=config['self_test'],
+    is_scheduled = config.get('is_scheduled', False)
+    repo_uri = f'https://github.com/{config["owner"]}/{config["repo_name"]}'
+
+    # test_annotations analysis for pull requests.
+    if config["pull_request_number"] and not is_scheduled:
+        try:
+            test_annotations = pr_resolve.read_test_annotations(
+                repo_uri=f'{repo_uri}.git',
+                pr_number=config['pull_request_number'],
+                pr_payload=config['pr_payload'],
+                testmode=config['self_test'],
+            )
+        except pr_resolve.Exception as e:
+            blocking_errors.append(f"Error reading test annotations: {e}")
+            return blocking_errors, non_blocking_errors
+
+        LOG.info('test_annotations:')
+        annotations_pretty = pprint.pformat(test_annotations._asdict())
+        LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
+
+        # Check draft PR run status.
+        if config.get('pr_payload', {}).get('draft') and not test_annotations.run_on_draft:
+            LOG.info('\n\nTests are not launched for draft PRs by default.\n'
+                     'To enable testing on draft PRs, add the following annotation to the PR:\n'
+                     '```\n'
+                     'run-ci-on-draft = true\n'
+                     '```\n')
+            return blocking_errors, non_blocking_errors
+
+    # Scheduled or triggered tests have no annotations and rely on default values set below.
+    else:
+        test_annotations = pr_resolve.TestAnnotations(
+            build_group_map={},  # No build group for nightly runs.
+            skip_cache='false',
+            debug_mode=False,
+            next_ci_suffix='',  # No suffix, use primary build environment.
+            test_select='random',
+            jedi_bundle_branch=None,  # If set this overrides the action config.
         )
-    except pr_resolve.Exception as e:
-        blocking_errors.append(f"Error reading test annotations: {e}")
-        return blocking_errors, non_blocking_errors
-
-    LOG.info('test_annotations:')
-    annotations_pretty = pprint.pformat(test_annotations._asdict())
-    LOG.info(f'{timer.checkpoint()}\n{annotations_pretty}')
-
-    # Check draft PR run status.
-    if config.get('pr_payload', {}).get('draft') and not test_annotations.run_on_draft:
-        LOG.info('\n\nTests are not launched for draft PRs by default.\n'
-                 'To enable testing on draft PRs, add the following annotation to the PR:\n'
-                 '```\n'
-                 'run-ci-on-draft = true\n'
-                 '```\n')
-        return blocking_errors, non_blocking_errors
+        LOG.info(f'{timer.checkpoint()}\nNightly run — using default test annotations.')
 
     bundle_branch = config['bundle_branch']  # This is the default branch to use for the bundle.
     if test_annotations.jedi_bundle_branch:
@@ -189,13 +204,22 @@ def prepare_and_launch_ci_test(
 
     # Rewrite the bundle cmake file with the selected projects for the first build stage.
     with open(bundle_file_unittest, 'w') as f:
-        bundle.rewrite_build_group_whitelist(
-            file_object=f,
-            enabled_bundles=test_dependencies,
-            build_group_commit_map=repo_to_commit_hash,
-        )
-        LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
-                 f'bundles: {test_dependencies}.')
+        if test_dependencies:
+            bundle.rewrite_build_group_whitelist(
+                file_object=f,
+                enabled_bundles=test_dependencies,
+                build_group_commit_map=repo_to_commit_hash,
+            )
+            LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
+                     f'bundles: {test_dependencies}.')
+        else:
+            # With no test dependencies, build the full bundle (empty blacklist).
+            bundle.rewrite_build_group_blacklist(
+                file_object=f,
+                disabled_bundles=set(),
+                build_group_commit_map=repo_to_commit_hash,
+            )
+            LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists.')
 
     # Create an integration test bundle definition if necessary.
     if test_strategy == 'all':
@@ -224,8 +248,7 @@ def prepare_and_launch_ci_test(
     # Upload the bundle to S3.
     s3_file = (
         f'ci_action_bundles/{config["repository"]}/'
-        f'{config["pull_request_number"]}-'
-        f'{config["trigger_commit"]}-bundle.tar.gz'
+        f'{config["build_id_name"]}-bundle.tar.gz'
     )
     s3_client = boto3.client('s3')
     configured_bundle_tarball_s3_path = upload_to_aws(
@@ -241,11 +264,12 @@ def prepare_and_launch_ci_test(
     else:
         chosen_build_environments = [test_select]
 
-    non_blocking_errors = cancel_prior_jobs_and_check_runs(
-        non_blocking_errors,
-        infra_config,
-        config,
-    )
+    if not is_scheduled:
+        non_blocking_errors = cancel_prior_jobs_and_check_runs(
+            non_blocking_errors,
+            infra_config,
+            config,
+        )
 
     # This is a constructor for the configuration needed to submit AWS Batch jobs.
     # This constructor reads configuration from the environment and must be
@@ -267,6 +291,8 @@ def prepare_and_launch_ci_test(
         unit_run_id = 0
 
         # Create GitHub check runs for the unit and integration tests (as required by strategy).
+        unit_run_info = ""
+        integration_run_info = ""
         if test_strategy in ('all', 'unit'):
             unit_run_id = github_client.create_check_run(
                 github_client.UNIT_TEST_PREFIX,
@@ -275,6 +301,7 @@ def prepare_and_launch_ci_test(
                 config['owner'],
                 config['trigger_commit'],
                 test_annotations.next_ci_suffix)
+            unit_run_info = f' - unit: {repo_uri}/runs/{unit_run_id}'
         if test_strategy in ('all', 'integration'):
             integration_run_id = github_client.create_check_run(
                 github_client.INTEGRATION_TEST_PREFIX,
@@ -283,14 +310,14 @@ def prepare_and_launch_ci_test(
                 config['owner'],
                 config['trigger_commit'],
                 test_annotations.next_ci_suffix)
+            integration_run_info = f' - integration: {repo_uri}/runs/{integration_run_id}'
         LOG.info(f'{timer.checkpoint()}\nCreated check runs for build_environment \n'
-                 f' - unit: {unit_run_id}\n - integration: {integration_run_id}.')
+                 f'{unit_run_info}\n{integration_run_info}')
 
         debug_time = 60 * 30 if test_annotations.debug_mode else 0
         build_identity = (
             f'{config["repo_name"]}-'
-            f'{config["pull_request_number"]}-'
-            f'{config["trigger_commit_short"]}-{build_environment}'
+            f'{config["build_id_name"]}-{build_environment}'
         )
         repo_name_full = (
             f'{config["owner"]}/{config["repo_name"]}'
@@ -302,8 +329,7 @@ def prepare_and_launch_ci_test(
             ),
             repo_name=config['repo_name'],
             repo_name_full=repo_name_full,
-            commit=config['trigger_commit_short'],
-            pr=config['pull_request_number'],
+            build_id=config['build_id_name'],
             configured_bundle_tarball=configured_bundle_tarball_s3_path,
             debug_time_seconds=debug_time,
             build_identity=build_identity,
