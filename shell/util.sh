@@ -278,6 +278,9 @@ util.check_run_end() {
 # outputs. Takes no arguments. This only runs after the unit tests.
 # Args:
 #     $1: (integer) The max allowed failure percentage.
+#
+# Returns:
+#     return code 0 if the test is successful, 1 if the test is a failure.
 util.check_run_eval_test_xml() {
     max_fail_ppc=$1
     if [ $SKIP_GITHUB_CHECK_RUNS = 'yes' ]; then

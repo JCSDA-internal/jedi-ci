@@ -166,9 +166,7 @@ def submit_test_batch_job(
         unittest_tag: str,
         trigger_sha: str,
         trigger_pr: str,
-        integration_run_id: str,
-        unit_run_id: str,
-        unittest_dependencies: str,
+        check_run_id: str,
         test_script: str,
 ):
     """Submit a CI batch job with updated environment variables."""
@@ -215,16 +213,8 @@ def submit_test_batch_job(
                     'value': str(trigger_pr),
                 },
                 {
-                    'name': 'INTEGRATION_RUN_ID',
-                    'value': str(integration_run_id),
-                },
-                {
-                    'name': 'UNIT_RUN_ID',
-                    'value': str(unit_run_id),
-                },
-                {
-                    'name': 'UNIT_DEPENDENCIES',
-                    'value': unittest_dependencies,
+                    'name': 'CHECK_RUN_ID',
+                    'value': str(check_run_id),
                 },
                 {
                     'name': 'TEST_SCRIPT',

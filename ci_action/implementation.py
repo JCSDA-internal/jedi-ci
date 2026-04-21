@@ -186,12 +186,8 @@ def prepare_and_launch_ci_test(
 
     # Import the bundle file
     bundle_file = os.path.join(bundle_repo_path, 'CMakeLists.txt')
-    bundle_file_unittest = bundle_file
     bundle_original = os.path.join(
         bundle_repo_path, 'CMakeLists.txt.original'
-    )
-    bundle_integration = os.path.join(
-        bundle_repo_path, 'CMakeLists.txt.integration'
     )
     with open(bundle_file, 'r') as f:
         bundle = cmake_rewrite.CMakeFile(f.read())
@@ -199,37 +195,15 @@ def prepare_and_launch_ci_test(
     # Move the original bundle file to the original file.
     shutil.move(bundle_file, bundle_original)
 
-    test_dependencies = config['test_dependencies']
-    test_strategy = config['test_strategy']
-
-    # Rewrite the bundle cmake file with the selected projects for the first build stage.
-    with open(bundle_file_unittest, 'w') as f:
-        if test_dependencies:
-            bundle.rewrite_build_group_whitelist(
-                file_object=f,
-                enabled_bundles=test_dependencies,
-                build_group_commit_map=repo_to_commit_hash,
-            )
-            LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists file with '
-                     f'bundles: {test_dependencies}.')
-        else:
-            # With no test dependencies, build the full bundle (empty blacklist).
-            bundle.rewrite_build_group_blacklist(
-                file_object=f,
-                disabled_bundles=set(),
-                build_group_commit_map=repo_to_commit_hash,
-            )
-            LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists.')
-
-    # Create an integration test bundle definition if necessary.
-    if test_strategy == 'all':
-        with open(bundle_integration, 'w') as f:
-            bundle.rewrite_build_group_blacklist(
-                file_object=f,
-                disabled_bundles=set(),
-                build_group_commit_map=repo_to_commit_hash,
-            )
-            LOG.info(f'{timer.checkpoint()}\n Wrote second CMakeLists file with bundles.')
+    # Rewrite the bundle cmake file exchanging branch references for
+    # commit hashes from the build group.
+    with open(bundle_file, 'w') as f:
+        bundle.rewrite_build_group_blacklist(
+            file_object=f,
+            disabled_bundles=set(),
+            build_group_commit_map=repo_to_commit_hash,
+        )
+        LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists.')
 
     # Add resources to the bundle by copying all files in /app/shell to jedi_ci_resources
     shutil.copytree(
@@ -285,34 +259,16 @@ def prepare_and_launch_ci_test(
     # write the test github check runs to the PR.
     for build_environment in chosen_build_environments:
 
-        # Set default check run IDs to 0 since this value is used in the test runner to
-        # determine if a check run update is a no-op.
-        integration_run_id = 0
-        unit_run_id = 0
-
-        # Create GitHub check runs for the unit and integration tests (as required by strategy).
-        unit_run_info = ""
-        integration_run_info = ""
-        if test_strategy in ('all', 'unit'):
-            unit_run_id = github_client.create_check_run(
-                github_client.UNIT_TEST_PREFIX,
-                build_environment,
-                config['repo_name'],
-                config['owner'],
-                config['trigger_commit'],
-                test_annotations.next_ci_suffix)
-            unit_run_info = f' - unit: {repo_uri}/runs/{unit_run_id}'
-        if test_strategy in ('all', 'integration'):
-            integration_run_id = github_client.create_check_run(
-                github_client.INTEGRATION_TEST_PREFIX,
-                build_environment,
-                config['repo_name'],
-                config['owner'],
-                config['trigger_commit'],
-                test_annotations.next_ci_suffix)
-            integration_run_info = f' - integration: {repo_uri}/runs/{integration_run_id}'
-        LOG.info(f'{timer.checkpoint()}\nCreated check runs for build_environment \n'
-                 f'{unit_run_info}\n{integration_run_info}')
+        # Create a single GitHub check run for this build environment.
+        check_run_id = github_client.create_check_run(
+            github_client.JEDI_CI_PREFIX,
+            build_environment,
+            config['repo_name'],
+            config['owner'],
+            config['trigger_commit'],
+            test_annotations.next_ci_suffix)
+        LOG.info(f'{timer.checkpoint()}\nCreated check run for build_environment '
+                 f'{build_environment}: {repo_uri}/runs/{check_run_id}')
 
         debug_time = 60 * 30 if test_annotations.debug_mode else 0
         build_identity = (
@@ -336,9 +292,7 @@ def prepare_and_launch_ci_test(
             unittest_tag=config['unittest_tag'],
             trigger_sha=config['trigger_commit'],
             trigger_pr=str(config['pull_request_number']),
-            integration_run_id=integration_run_id,
-            unit_run_id=unit_run_id,
-            unittest_dependencies=' '.join(test_dependencies),
+            check_run_id=check_run_id,
             test_script=config['test_script'],
         )
         job_arn = job['jobArn']
