@@ -198,7 +198,7 @@ def prepare_and_launch_ci_test(
     # Rewrite the bundle cmake file exchanging branch references for
     # commit hashes from the build group.
     with open(bundle_file, 'w') as f:
-        bundle.rewrite_build_group_blacklist(
+        bundle.rewrite_from_build_groups(
             file_object=f,
             disabled_bundles=set(),
             build_group_commit_map=repo_to_commit_hash,
