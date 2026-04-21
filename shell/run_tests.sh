@@ -99,7 +99,7 @@ $FC -v
 
 # For local testing, check runs are created by this script.
 if [ "${CREATE_CHECK_RUNS}" == "yes" ]; then
-    export CHECK_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "ci" $TRIGGER_SHA)
+    export CHECK_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL $TRIGGER_SHA)
 fi
 
 echo "--------------------------------------------------------------"

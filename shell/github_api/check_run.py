@@ -54,7 +54,6 @@ Other commands:
             --app-private-key=$HOME/.ssh/my_key.pem \
             --repo=eap/skylab_env \
             --commit=054d80255cb6351ae629f2caca3344537866e598 \
-            --test-type=unit \
             --test-platform='arm' \
             --test-logs-url="http://en.wikipedia.org/wiki/Shark")
     $ echo $CHECK_RUN_ID
@@ -170,11 +169,6 @@ PARSER_NEW.add_argument(
 PARSER_NEW.add_argument(
     '--test-platform',
     required=True,
-    help='The test platform used for test output and workflow titles.')
-PARSER_NEW.add_argument(
-    '--test-type',
-    required=True,
-    choices=['unit', 'integration'],
     help='The test platform used for test output and workflow titles.')
 PARSER_NEW.add_argument(
     '--ecs-metadata-uri',
@@ -501,7 +495,7 @@ def check_run_new(args, app_id, app_key, repo_owner, repo_name):
     commit = args.commit
     client = get_authed_github_client(
         app_id, app_key, repo_owner, repo_name)
-    test_name = f'JEDI {args.test_type} test: {args.test_platform}'
+    test_name = f'JEDI CI test: {args.test_platform}'
 
     metadata = ECSTaskMetaData(args.ecs_metadata_uri, args.batch_task_id)
     run = _create_check_run(
