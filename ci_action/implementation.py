@@ -200,7 +200,6 @@ def prepare_and_launch_ci_test(
     with open(bundle_file, 'w') as f:
         bundle.rewrite_from_build_groups(
             file_object=f,
-            disabled_bundles=set(),
             build_group_commit_map=repo_to_commit_hash,
         )
         LOG.info(f'{timer.checkpoint()}\n Wrote CMakeLists.')
