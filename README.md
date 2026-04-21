@@ -3,21 +3,6 @@
 A GitHub Action for running JEDI unit tests and integration tests by building
 the jedi-bundle with target repositories.
 
-**v2 — Breaking changes**
-
-`jedi-ci@v2` simplifies the jedi-bundle configuration and build process,
-introduces build caching, and removes several inputs that are no longer
-needed. Before switching your workflow to `uses: JCSDA-internal/jedi-ci@v2`
-remove the following inputs (if present):
-
-|          Input          |           Action               |
-|-------------------------|--------------------------------|
-| `test_strategy`         | Remove — all builds are now full-bundle single-stage |
-| `unittest_dependencies` | Remove — unified build no longer needs unittest dependencies |
-| `test_dependencies`     | Remove — bundle trimming no longer performed |
-| `target_repo_dir`       | Remove — deprecated option. |
-
-
 ## Overview
 
 JEDI-CI is a GitHub Action that replaces the previous "JCSDA-internal/ci"
