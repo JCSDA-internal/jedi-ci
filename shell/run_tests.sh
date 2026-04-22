@@ -208,8 +208,9 @@ fi
 # Run unit tests (when a UNITTEST_TAG label is configured).
 #
 
+util.check_run_start_test $TRIGGER_REPO_FULL $CHECK_RUN_ID
+
 if [ -n "${UNITTEST_TAG}" ]; then
-    util.check_run_start_test $TRIGGER_REPO_FULL $CHECK_RUN_ID
     ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L "${UNITTEST_TAG}" --timeout 500 -C RelWithDebInfo -M Experimental -T Test
 
     # Upload unit test results.
@@ -238,8 +239,6 @@ fi
 #
 # Run integration tests.
 #
-
-util.check_run_start_test $TRIGGER_REPO_FULL $CHECK_RUN_ID
 
 # If no unittest tag is configured, add a junk regex to avoid breaking the label regex.
 if [ -z "${UNITTEST_TAG}" ]; then

@@ -101,35 +101,6 @@ util.check_run_fail() {
 }
 
 # Update a check run to have a status of "complete" and a conclusion of
-# "skipped". This is a soft failure mode and notes a failure upstream from
-# the skipped test. Repositories with skipped check runs will not permit
-# code to be merged.
-# Args:
-#     $1: Repository name in "owner/repo" format.
-#     $2: Check Run ID: the identifier from GitHub's API.
-util.check_run_skip() {
-    if [ $SKIP_GITHUB_CHECK_RUNS = 'yes' ]; then
-        return 0
-    fi
-    repo=$1
-    run_id=$2
-    if [ $run_id -eq 0 ]; then
-        return 0
-    fi
-    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
-        --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
-        --app-id="${GITHUB_APP_ID}" \
-        --repo=$repo \
-        --check-run-id="${run_id}" \
-        --ecs-metadata-uri="${ECS_CONTAINER_METADATA_URI_V4}" \
-        --batch-task-id="${AWS_BATCH_JOB_ID}" \
-        --public-log-link="${PUBLIC_LOG_URL}" \
-        --status="completed" \
-        --conclusion="skipped" \
-        --title="prior step failed"
-}
-
-# Update a check run to have a status of "complete" and a conclusion of
 # "success". This type of update is used to skip a test that is not required
 # but would otherwise cause the repository to block merging.
 # Args:
