@@ -55,51 +55,21 @@ util.create_cdash_url() {
 # Create a new check run in the queued state.
 # Takes three arguments:
 #     $1: Repository name in "owner/repo" format.
-#     $2: Test-type; must be "unit" or "integration"
-#     $3: trigger commit sha hash.
+#     $2: trigger commit sha hash.
 util.check_run_new() {
     if [ $SKIP_GITHUB_CHECK_RUNS = 'yes' ]; then
         return 0
     fi
     repo=$1
-    test_type=$2
-    commit_sha=$3
+    commit_sha=$2
     ${CI_SCRIPTS_DIR}/github_api/check_run.py new \
         --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
         --app-id="${GITHUB_APP_ID}" \
         --repo=$repo \
         --commit=$commit_sha \
-        --test-type=$test_type \
         --test-platform=${JEDI_COMPILER} \
         --ecs-metadata-uri="${ECS_CONTAINER_METADATA_URI_V4}" \
         --batch-task-id="${AWS_BATCH_JOB_ID}"
-}
-
-# Update a queued check-run with a link to the runner. This is used as
-# a hand-off from the lambda function which does not yet have a link to
-# the runner logs. Args:
-#     $1: Repository name in "owner/repo" format.
-#     $2: Check Run ID: the identifier from GitHub's API.
-util.check_run_runner_allocated() {
-    if [ $SKIP_GITHUB_CHECK_RUNS = 'yes' ]; then
-        return 0
-    fi
-    repo=$1
-    run_id=$2
-    if [ $run_id -eq 0 ]; then
-        return 0
-    fi
-    # Note: when the test is updated to indicate a runner is allocated we do
-    # not include the public log link since it is not available until after all
-    # tests on a build host are complete.
-    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
-        --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
-        --app-id="${GITHUB_APP_ID}" \
-        --repo=$repo \
-        --check-run-id="${run_id}" \
-        --ecs-metadata-uri="${ECS_CONTAINER_METADATA_URI_V4}" \
-        --batch-task-id="${AWS_BATCH_JOB_ID}" \
-        --title="Test runner allocated"
 }
 
 # Update a check run setting the status to failure and giving a simple
@@ -128,35 +98,6 @@ util.check_run_fail() {
         --status="completed" \
         --conclusion="failure" \
         --title="${fail_reason}"
-}
-
-# Update a check run to have a status of "complete" and a conclusion of
-# "skipped". This is a soft failure mode and notes a failure upstream from
-# the skipped test. Repositories with skipped check runs will not permit
-# code to be merged.
-# Args:
-#     $1: Repository name in "owner/repo" format.
-#     $2: Check Run ID: the identifier from GitHub's API.
-util.check_run_skip() {
-    if [ $SKIP_GITHUB_CHECK_RUNS = 'yes' ]; then
-        return 0
-    fi
-    repo=$1
-    run_id=$2
-    if [ $run_id -eq 0 ]; then
-        return 0
-    fi
-    ${CI_SCRIPTS_DIR}/github_api/check_run.py update \
-        --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
-        --app-id="${GITHUB_APP_ID}" \
-        --repo=$repo \
-        --check-run-id="${run_id}" \
-        --ecs-metadata-uri="${ECS_CONTAINER_METADATA_URI_V4}" \
-        --batch-task-id="${AWS_BATCH_JOB_ID}" \
-        --public-log-link="${PUBLIC_LOG_URL}" \
-        --status="completed" \
-        --conclusion="skipped" \
-        --title="prior step failed"
 }
 
 # Update a check run to have a status of "complete" and a conclusion of
@@ -278,6 +219,9 @@ util.check_run_end() {
 # outputs. Takes no arguments. This only runs after the unit tests.
 # Args:
 #     $1: (integer) The max allowed failure percentage.
+#
+# Returns:
+#     return code 0 if the test is successful, 1 if the test is a failure.
 util.check_run_eval_test_xml() {
     max_fail_ppc=$1
     if [ $SKIP_GITHUB_CHECK_RUNS = 'yes' ]; then
