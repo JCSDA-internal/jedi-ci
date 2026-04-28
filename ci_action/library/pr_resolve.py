@@ -202,7 +202,7 @@ def gather_build_group_hashes(build_group_mapping):
         pr = grepo.get_pull(pr_number)
         pr_group_map_out[repo_name_key] = {
             "name_key": repo_name_key,
-            "uri": grepo.clone_url,
+            "uri": pr.clone_url,
             "version_ref": {
                 "pr_id": pr.number,
                 "branch": pr.head.ref,
