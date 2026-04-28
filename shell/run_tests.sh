@@ -132,8 +132,6 @@ SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER"
 
 
 #
-
-#
 # Setup and run tests.
 #
 
@@ -194,6 +192,8 @@ cd "${BUILD_DIR}"
 
 ecbuild \
       -Wno-dev \
+      -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
       -DBUILD_GSIBEC=ON \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCDASH_OVERRIDE_SYSTEM_NAME="${JEDI_COMPILER}-Container" \
