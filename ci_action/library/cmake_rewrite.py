@@ -238,7 +238,8 @@ class CMakeFile:
                 # Use the commit hash as a tag
                 commit_info = build_group_commit_map[bundle_line.github_org_repo_key]
                 commit_hash = commit_info["version_ref"]["commit"]
-                lines.append(bundle_line.rewrite(tag=commit_hash) + '\n')
+                git_repo = commit_info.get("uri")
+                lines.append(bundle_line.rewrite(git_repo=git_repo, tag=commit_hash) + '\n')
                 continue
 
             # If the line has a rewrite rule, use it.
