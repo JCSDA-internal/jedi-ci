@@ -117,10 +117,26 @@ ulimit -a
 # From this point forward we are executing the test and sending debug to stderr.
 set -x
 
+#
+# Setup sccache for caching. This will be handled by the image in the future but temporarily do setup here.
+#
+if [[ ! $(which sccache) ]]; then
+    wget https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz
+    tar -xvf sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz
+    mv ./sccache-v0.14.0-x86_64-unknown-linux-musl/sccache /usr/local/bin/sccache
+    rm -rf sccache-v0.14.0-x86_64-unknown-linux-musl*
+fi
+SCCACHE_BUCKET="${CACHE_BUCKET}"
+SCCACHE_REGION="us-east-2"
+SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER"
+
+
+#
 
 #
 # Setup and run tests.
 #
+
 
 # Temporary bugfix; update awscrt because the spack-provded version is too old.
 # BUG: https://github.com/JCSDA-internal/jedi-ci/issues/50
