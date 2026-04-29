@@ -121,7 +121,7 @@ set -x
 # Setup sccache for caching. This will be handled by the image in the future but temporarily do setup here.
 #
 if [[ ! $(which sccache) ]]; then
-    wget https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz
+    wget --no-verbose https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz
     tar -xvf sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz
     mv ./sccache-v0.14.0-x86_64-unknown-linux-musl/sccache /usr/local/bin/sccache
     rm -rf sccache-v0.14.0-x86_64-unknown-linux-musl*
@@ -129,6 +129,10 @@ fi
 SCCACHE_BUCKET="${CACHE_BUCKET}"
 SCCACHE_REGION="us-east-2"
 SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER"
+
+sccache --start-server
+sleep 5
+sccache --show-stats
 
 
 #
@@ -219,6 +223,9 @@ if [ $? -ne 0 ]; then
     util.evaluate_debug_timer_then_cleanup
     exit 0
 fi
+
+# Show sccache debug output.
+sccache --show-stats
 
 #
 # Run unit tests (when a UNITTEST_TAG label is configured).
