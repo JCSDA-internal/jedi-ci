@@ -126,9 +126,11 @@ if [[ ! $(which sccache) ]]; then
     mv ./sccache-v0.14.0-x86_64-unknown-linux-musl/sccache /usr/local/bin/sccache
     rm -rf sccache-v0.14.0-x86_64-unknown-linux-musl*
 fi
-SCCACHE_BUCKET="${CACHE_BUCKET}"
-SCCACHE_REGION="us-east-2"
-SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER"
+
+# Export sccache AWS bucket config.
+export SCCACHE_BUCKET="${CACHE_BUCKET}"
+export SCCACHE_REGION="us-east-2"
+export SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER"
 
 sccache --start-server
 sleep 5
