@@ -131,10 +131,7 @@ fi
 export SCCACHE_BUCKET="${CACHE_BUCKET}"
 export SCCACHE_REGION="us-east-2"
 export SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER"
-
 sccache --start-server
-sleep 5
-sccache --show-stats
 
 
 #
