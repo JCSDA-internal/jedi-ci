@@ -67,6 +67,11 @@ if [ -z "${TRIGGER_REPO_FULL}" ]; then
     echo "Var TRIGGER_REPO_FULL must be set."
     valid_environment_found="no"
 fi
+if [ -z "${CACHE_BUCKET}" ]; then
+    # This variable is set by AWS Batch.
+    echo "Var CACHE_BUCKET must be set."
+    valid_environment_found="no"
+fi
 
 
 if [ $valid_environment_found == "no" ]; then
@@ -130,7 +135,7 @@ fi
 # Export sccache AWS bucket config.
 export SCCACHE_BUCKET="${CACHE_BUCKET}"
 export SCCACHE_REGION="us-east-2"
-export SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER"
+export SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER-$($CC -dumpversion | tr -d '.')"
 sccache --start-server
 
 
