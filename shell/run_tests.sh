@@ -67,6 +67,11 @@ if [ -z "${TRIGGER_REPO_FULL}" ]; then
     echo "Var TRIGGER_REPO_FULL must be set."
     valid_environment_found="no"
 fi
+if [ -z "${CACHE_BUCKET}" ]; then
+    # This variable is set by AWS Batch.
+    echo "Var CACHE_BUCKET must be set."
+    valid_environment_found="no"
+fi
 
 
 if [ $valid_environment_found == "no" ]; then
@@ -117,10 +122,27 @@ ulimit -a
 # From this point forward we are executing the test and sending debug to stderr.
 set -x
 
+#
+# Setup sccache for caching. This will be handled by the image in the future but temporarily do setup here.
+#
+if [[ ! $(which sccache) ]]; then
+    wget --no-verbose https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz
+    tar -xvf sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz
+    mv ./sccache-v0.14.0-x86_64-unknown-linux-musl/sccache /usr/local/bin/sccache
+    rm -rf sccache-v0.14.0-x86_64-unknown-linux-musl*
+fi
+
+# Export sccache AWS bucket config.
+export SCCACHE_BUCKET="${CACHE_BUCKET}"
+export SCCACHE_REGION="us-east-2"
+export SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER-$($CC -dumpversion | tr -d '.')"
+sccache --start-server
+
 
 #
 # Setup and run tests.
 #
+
 
 # Temporary bugfix; update awscrt because the spack-provded version is too old.
 # BUG: https://github.com/JCSDA-internal/jedi-ci/issues/50
@@ -178,6 +200,8 @@ cd "${BUILD_DIR}"
 
 ecbuild \
       -Wno-dev \
+      -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
       -DBUILD_GSIBEC=ON \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCDASH_OVERRIDE_SYSTEM_NAME="${JEDI_COMPILER}-Container" \
@@ -203,6 +227,9 @@ if [ $? -ne 0 ]; then
     util.evaluate_debug_timer_then_cleanup
     exit 0
 fi
+
+# Show sccache debug output.
+sccache --show-stats
 
 #
 # Run unit tests (when a UNITTEST_TAG label is configured).
