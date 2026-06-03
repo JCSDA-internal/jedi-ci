@@ -168,6 +168,7 @@ def submit_test_batch_job(
         trigger_pr: str,
         check_run_id: str,
         test_script: str,
+        is_scheduled: bool,
 ):
     """Submit a CI batch job with updated environment variables."""
     job_name = f'jedi-ci-{repo_name}-{build_id}-{config.build_environment}'
@@ -219,6 +220,11 @@ def submit_test_batch_job(
                 {
                     'name': 'TEST_SCRIPT',
                     'value': test_script,
+                },
+                {
+                    # Whether this is a scheduled (nightly) run.
+                    'name': 'IS_SCHEDULED',
+                    'value': 'yes' if is_scheduled else 'no',
                 },
             ],
         },

@@ -151,6 +151,11 @@ pip install --upgrade awscrt
 # Extract just the repo name from the full repository path
 TRIGGER_REPO=$(echo "$TRIGGER_REPO_FULL" | cut -d'/' -f2)
 
+# Initialize the structured status log with run metadata. From here on we
+# append lifecycle events (configure, build, test, upload) so overall test
+# system status can be monitored independently of CDash and GitHub check runs.
+util.status_log_init
+
 # Mark the single check run as building and attach the batch job URL.
 util.check_run_start_build $TRIGGER_REPO_FULL $CHECK_RUN_ID
 
@@ -213,20 +218,24 @@ ecbuild \
       "${COMPILER_FLAGS[@]}" "${JEDI_BUNDLE_DIR}"
 
 if [ $? -ne 0 ]; then
+    util.status_log_event configure failure "Bundle configuration failed"
     util.check_run_fail $TRIGGER_REPO_FULL $CHECK_RUN_ID "Bundle configuration failed"
     util.evaluate_debug_timer_then_cleanup
     exit 0
 fi
+util.status_log_event configure success
 
 # Back-date source files (search "back-date" in this file for an explanation).
 find $JEDI_BUNDLE_DIR -type f -exec touch -d "$SOURCE_BACKDATE_TIMESTAMP" {} \;
 
 make -j $BUILD_PARALLELISM
 if [ $? -ne 0 ]; then
+    util.status_log_event build failure "compilation failed"
     util.check_run_fail $TRIGGER_REPO_FULL $CHECK_RUN_ID "compilation failed"
     util.evaluate_debug_timer_then_cleanup
     exit 0
 fi
+util.status_log_event build success
 
 # Show sccache debug output.
 sccache --show-stats
@@ -240,8 +249,15 @@ util.check_run_start_test $TRIGGER_REPO_FULL $CHECK_RUN_ID
 if [ -n "${UNITTEST_TAG}" ]; then
     ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L "${UNITTEST_TAG}" --timeout 500 -C RelWithDebInfo -M Experimental -T Test
 
+    # Record unit test pass/fail counts to the status log.
+    util.status_log_test_result unit_test "$(util.find_test_xml)"
+
     # Upload unit test results.
-    ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous
+    if ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous; then
+        util.status_log_event cdash_upload success "unit"
+    else
+        util.status_log_event cdash_upload failure "unit"
+    fi
 
     # Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved.
     find ${BUILD_DIR}/Testing -type f
@@ -275,8 +291,15 @@ fi
 # Run integration tests.
 ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -T Test
 
+# Record integration test pass/fail counts to the status log.
+util.status_log_test_result integration_test "$(util.find_test_xml)"
+
 # Upload ctests.
-ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous
+if ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous; then
+    util.status_log_event cdash_upload success "integration"
+else
+    util.status_log_event cdash_upload failure "integration"
+fi
 
 # Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved.
 find ${BUILD_DIR}/Testing -type f
@@ -295,5 +318,6 @@ if [ "$JEDI_COMPILER" = "gcc" ] && [ -f "${JEDI_BUNDLE_DIR}/${TRIGGER_REPO}/.cod
     bash <(curl -s https://codecov.io/bash) -t 53f87271-b490-453c-b891-afd39cb658af -R "${JEDI_BUNDLE_DIR}/${TRIGGER_REPO}"
 fi
 
+util.status_log_event run complete
 util.evaluate_debug_timer_then_cleanup
 echo "test complete"

@@ -293,6 +293,7 @@ def prepare_and_launch_ci_test(
             trigger_pr=str(config['pull_request_number']),
             check_run_id=check_run_id,
             test_script=config['test_script'],
+            is_scheduled=is_scheduled,
         )
         job_arn = job['jobArn']
         LOG.info(

@@ -4,11 +4,21 @@ source /opt/spack-environment/activate.sh
 # Directory of this script.
 export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Setup public log stream.
+# Setup public log stream. Objects are sharded under a YYYYMMDD date prefix to
+# keep later ingestion jobs simple.
 _RANDOM="$(head /dev/urandom | base32 | head -c 8)"
 _REGION="$(aws s3api get-bucket-location --bucket $PUBLIC_LOGS_BUCKET | jq -r .LocationConstraint)"
-export PUBLIC_LOG_S3="s3://${PUBLIC_LOGS_BUCKET}/${BUILD_IDENTITY}-${_RANDOM}.html"
-export PUBLIC_LOG_URL="https://${PUBLIC_LOGS_BUCKET}.s3.${_REGION}.amazonaws.com/${BUILD_IDENTITY}-${_RANDOM}.html"
+_DATE="$(date -u +%Y%m%d)"
+export PUBLIC_LOG_S3="s3://${PUBLIC_LOGS_BUCKET}/${_DATE}/${BUILD_IDENTITY}-${_RANDOM}.html"
+export PUBLIC_LOG_URL="https://${PUBLIC_LOGS_BUCKET}.s3.${_REGION}.amazonaws.com/${_DATE}/${BUILD_IDENTITY}-${_RANDOM}.html"
+
+# Structured status log. The test script appends YAML lifecycle events here
+# (see util.status_log_* functions); we upload it to the public bucket on the
+# same cadence as the build logs so global test-system status can be consumed
+# later to build a dashboard.
+export STATUS_LOG="/tmp/status.log"
+export STATUS_LOG_S3="s3://${PUBLIC_LOGS_BUCKET}/${_DATE}/${BUILD_IDENTITY}-${_RANDOM}.status.yaml"
+export STATUS_LOG_URL="https://${PUBLIC_LOGS_BUCKET}.s3.${_REGION}.amazonaws.com/${_DATE}/${BUILD_IDENTITY}-${_RANDOM}.status.yaml"
 
 # Setup GitHub app credentials.
 cp $SCRIPT_DIR/git_askPass_app_credentials.py /bin/git_askPass_app_credentials.py
@@ -51,6 +61,7 @@ SLEEP_TIME=120  # 2 minutes
 while kill -0 $TEST_PID 2>/dev/null; do
     cat /tmp/build_logs.txt | python -m ansi2html -l > /tmp/build_logs.html
     aws s3 cp /tmp/build_logs.html $PUBLIC_LOG_S3 --content-type "text/html"
+    [ -f "$STATUS_LOG" ] && aws s3 cp "$STATUS_LOG" "$STATUS_LOG_S3" --content-type "text/plain"
     sleep $SLEEP_TIME
     MONITOR_UPLOADS=$((MONITOR_UPLOADS + 1))
     if [[ $MONITOR_UPLOADS == 5 ]]; then
@@ -70,4 +81,5 @@ sleep 1
 set -x
 cat /tmp/build_logs.txt | python -m ansi2html -l > /tmp/build_logs.html
 aws s3 cp /tmp/build_logs.html $PUBLIC_LOG_S3 --content-type "text/html"
+[ -f "$STATUS_LOG" ] && aws s3 cp "$STATUS_LOG" "$STATUS_LOG_S3" --content-type "text/plain"
 df -h

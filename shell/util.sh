@@ -256,3 +256,96 @@ util.ctest_LE_flag() {
     echo "-LE ${exclude_regex}"
     return 0
 }
+
+#
+# Structured status logging.
+#
+# Append-only record of the test lifecycle, written as a YAML document: a
+# metadata header followed by an `events:` list, one event per line. Uploaded
+# to the public bucket for aggregation into a global status dashboard. Unlike
+# CDash, this captures failures before or during configure/build.
+#
+# Example output:
+#
+#   repo: JCSDA/ufo
+#   commit: a1b2c3d
+#   pr: "42"
+#   compiler: gcc11
+#   batch_job_id: abc-123
+#   build_identity: ufo-gcc11
+#   public_log_url: https://.../ufo-gcc11-xxxx.html
+#   start_time: 2026-06-03T12:00:00Z
+#   events:
+#     - {time: 2026-06-03T12:01:00Z, event: configure, status: success}
+#     - {time: 2026-06-03T12:45:00Z, event: unit_test, status: failure, passed: 10, failed: 2}
+
+# Status log path. Normally exported by bootstrap_test.sh so the uploader
+# shares the same path.
+export STATUS_LOG="${STATUS_LOG:-/tmp/status.log}"
+
+# Truncate the status log and write the run metadata header, ending with the
+# `events:` key. Call once near the start of the test script; reads run
+# metadata from the environment.
+util.status_log_init() {
+    local ts
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    cat > "${STATUS_LOG}" <<EOF
+repo: ${TRIGGER_REPO_FULL}
+commit: ${TRIGGER_SHA}
+pr: "${TRIGGER_PR}"
+compiler: ${JEDI_COMPILER}
+scheduled: "${IS_SCHEDULED:-no}"
+batch_job_id: ${AWS_BATCH_JOB_ID}
+build_identity: ${BUILD_IDENTITY}
+public_log_url: ${PUBLIC_LOG_URL}
+start_time: ${ts}
+events:
+EOF
+}
+
+# Append a single event to the status log as a one-line YAML list item.
+# Args:
+#     $1: event name (e.g. "configure", "build", "unit_test", "cdash_upload").
+#     $2: status (e.g. "start", "success", "failure", "skipped").
+#     $3: (optional) free-form human-readable detail string.
+util.status_log_event() {
+    local event="$1"
+    local status="$2"
+    local detail="${3:-}"
+    local ts
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    if [ -n "${detail}" ]; then
+        # Escape embedded double-quotes so the quoted detail stays valid YAML.
+        detail="${detail//\"/\\\"}"
+        printf '  - {time: %s, event: %s, status: %s, detail: "%s"}\n' \
+            "${ts}" "${event}" "${status}" "${detail}" >> "${STATUS_LOG}"
+    else
+        printf '  - {time: %s, event: %s, status: %s}\n' \
+            "${ts}" "${event}" "${status}" >> "${STATUS_LOG}"
+    fi
+}
+
+# Append a test-result event with passed/failed counts parsed from a ctest
+# Test.xml. Each executed test is a <Test Status="..."> element; anything not
+# "passed" counts as failed (matching check_run.py). Status is "success" only
+# if at least one test ran and none failed.
+# Args:
+#     $1: event name ("unit_test" or "integration_test").
+#     $2: path to the ctest Test.xml file.
+util.status_log_test_result() {
+    local event="$1"
+    local test_xml="$2"
+    local total=0 passed=0 failed=0 status="failure"
+    if [ -f "${test_xml}" ]; then
+        total=$(grep -oE "<Test Status=" "${test_xml}" 2>/dev/null | wc -l)
+        passed=$(grep -oE "<Test Status=[\"']passed[\"']" "${test_xml}" 2>/dev/null | wc -l)
+        failed=$((total - passed))
+        if [ "${failed}" -eq 0 ] && [ "${total}" -gt 0 ]; then
+            status="success"
+        fi
+    fi
+    local ts
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf '  - {time: %s, event: %s, status: %s, passed: %s, failed: %s}\n' \
+        "${ts}" "${event}" "${status}" "${passed}" "${failed}" >> "${STATUS_LOG}"
+}
