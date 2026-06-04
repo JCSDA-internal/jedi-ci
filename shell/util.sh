@@ -283,9 +283,7 @@ util.ctest_LE_flag() {
 # shares the same path.
 export STATUS_LOG="${STATUS_LOG:-/tmp/status.log}"
 
-# Truncate the status log and write the run metadata header, ending with the
-# `events:` key. Call once near the start of the test script; reads run
-# metadata from the environment.
+# Initialize the status log document. Call once at the start of the test run.
 util.status_log_init() {
     local ts
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -303,49 +301,40 @@ events:
 EOF
 }
 
-# Append a single event to the status log as a one-line YAML list item.
+# Append a single lifecycle event to the status log.
 # Args:
 #     $1: event name (e.g. "configure", "build", "unit_test", "cdash_upload").
 #     $2: status (e.g. "start", "success", "failure", "skipped").
-#     $3: (optional) free-form human-readable detail string.
+#     $3: (optional) free-form human-readable detail string, defaults to "".
 util.status_log_event() {
     local event="$1"
     local status="$2"
     local detail="${3:-}"
     local ts
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    if [ -n "${detail}" ]; then
-        # Escape embedded double-quotes so the quoted detail stays valid YAML.
-        detail="${detail//\"/\\\"}"
-        printf '  - {time: %s, event: %s, status: %s, detail: "%s"}\n' \
-            "${ts}" "${event}" "${status}" "${detail}" >> "${STATUS_LOG}"
-    else
-        printf '  - {time: %s, event: %s, status: %s}\n' \
-            "${ts}" "${event}" "${status}" >> "${STATUS_LOG}"
-    fi
+    printf "  - " >> "${STATUS_LOG}"
+    jq -cn --arg time "${ts}" --arg event "${event}" --arg status "${status}" --arg detail "${detail}" \
+        '{time: $time, event: $event, status: $status, detail: $detail}' >> "${STATUS_LOG}"
 }
 
-# Append a test-result event with passed/failed counts parsed from a ctest
-# Test.xml. Each executed test is a <Test Status="..."> element; anything not
-# "passed" counts as failed (matching check_run.py). Status is "success" only
-# if at least one test ran and none failed.
+# Append a test-result event, with status and test counts parsed from a ctest
+# Test.xml by check_run.py.
 # Args:
 #     $1: event name ("unit_test" or "integration_test").
 #     $2: path to the ctest Test.xml file.
 util.status_log_test_result() {
     local event="$1"
     local test_xml="$2"
-    local total=0 passed=0 failed=0 status="failure"
-    if [ -f "${test_xml}" ]; then
-        total=$(grep -oE "<Test Status=" "${test_xml}" 2>/dev/null | wc -l)
-        passed=$(grep -oE "<Test Status=[\"']passed[\"']" "${test_xml}" 2>/dev/null | wc -l)
-        failed=$((total - passed))
-        if [ "${failed}" -eq 0 ] && [ "${total}" -gt 0 ]; then
-            status="success"
-        fi
-    fi
     local ts
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    printf '  - {time: %s, event: %s, status: %s, passed: %s, failed: %s}\n' \
-        "${ts}" "${event}" "${status}" "${passed}" "${failed}" >> "${STATUS_LOG}"
+
+    # Parse stats; a missing/unparseable Test.xml yields a "no_result" status.
+    local stat_json
+    stat_json="$(${CI_SCRIPTS_DIR}/github_api/check_run.py stat_test_xml --test-xml="${test_xml}")"
+
+    # Merge the base event object with the parsed stats. Compact (-c) keeps it
+    # on one line; JSON flow mappings are valid YAML.
+    printf "  - " >> "${STATUS_LOG}"
+    jq -cn --arg time "${ts}" --arg event "${event}" --argjson stat "${stat_json}" \
+        '{time: $time, event: $event} + $stat'  >> "${STATUS_LOG}"
 }

@@ -4,6 +4,9 @@ check_run.py manages the GitHub code check representation of our pre-submit
 tests. This script creates the check run, updates the check when tests
 start, and completes the check run when the tests are done.
 
+This script also has several functions for querying the content of the
+test result xml file.
+
 
 ## Subcommands
 
@@ -20,6 +23,9 @@ Other commands:
   * eval_test_xml: Given a passing test percentage, determine if a Test.xml file
                    meets the criteria for acceptance. Exit code of 1 if the test
                    failure rate is above the test fail percentage.
+  * stat_test_xml: Reads a Test.xml file and outputs a json string with the
+                   pass/fail status, count of total tests run, and count of
+                   failing tests.
 
 
 ## Unresolved issues
@@ -264,6 +270,17 @@ PARSER_EVAL.add_argument(
     type=int,
     required=True,
     help='What percentage of tests may fail without failing the test.')
+
+PARSER_STAT = SUBPARSERS.add_parser('stat_test_xml', help='print json with test result counts.')
+# First argument is a hidden flag used to detect this state.
+PARSER_STAT.add_argument(
+    '--stat-xml-flag',
+    action='store_true',
+    default=True,
+    help=argparse.SUPPRESS)
+PARSER_STAT.add_argument(
+    '--test-xml',
+    help='ctest output xml file with detailed test results.')
 
 
 TEST_GENERAL_INFO = textwrap.dedent(f"""
@@ -645,6 +662,21 @@ def eval_test_xml(args):
     sys.exit(0)
 
 
+def stat_test_xml(args):
+    try:
+        results = TestOutput.from_test_xml(args.test_xml)
+        resultsdict = {
+            'status': 'failure' if results.not_passed else 'success',
+            'count_tests': len(results.all_tests),
+            'count_tests_not_passed': len(results.not_passed),
+        }
+    except (OSError, ValueError, TypeError, xml.etree.ElementTree.ParseError):
+        # Missing, omitted, or unparseable Test.xml (e.g. the tests never ran).
+        resultsdict = {'status': 'no_result', 'count_tests': 0, 'count_tests_not_passed': 0}
+    print(json.dumps(resultsdict))
+    sys.exit(0)
+
+
 def print_help(_):
     PARSER.print_help()
 
@@ -657,9 +689,12 @@ if __name__ == '__main__':
     PARSER_UPDATE.set_defaults(func=check_run_update)
     PARSER_END.set_defaults(func=check_run_end)
     PARSER_EVAL.set_defaults(func=eval_test_xml)
+    PARSER_STAT.set_defaults(func=stat_test_xml)
     args = PARSER.parse_args()
 
     if 'eval_xml_flag' in args:
+        args.func(args)
+    elif 'stat_xml_flag' in args:
         args.func(args)
     else:
         app_id = args.app_id
