@@ -330,7 +330,7 @@ util.status_log_test_result() {
 
     # Parse stats; a missing/unparseable Test.xml yields a "no_result" status.
     local stat_json
-    stat_json="$(${CI_SCRIPTS_DIR}/github_api/check_run.py stat_test_xml --test-xml="${test_xml}")"
+    stat_json="$(${CI_SCRIPTS_DIR}/github_api/check_run.py stat_test_xml --test-xml="${test_xml}")" || stat_json='{"status": "no_result"}'
 
     # Merge the base event object with the parsed stats. Compact (-c) keeps it
     # on one line; JSON flow mappings are valid YAML.
