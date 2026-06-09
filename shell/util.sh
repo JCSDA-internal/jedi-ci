@@ -256,3 +256,85 @@ util.ctest_LE_flag() {
     echo "-LE ${exclude_regex}"
     return 0
 }
+
+#
+# Structured status logging.
+#
+# Append-only record of the test lifecycle, written as a YAML document: a
+# metadata header followed by an `events:` list, one event per line. Uploaded
+# to the public bucket for aggregation into a global status dashboard. Unlike
+# CDash, this captures failures before or during configure/build.
+#
+# Example output:
+#
+#   repo: JCSDA/ufo
+#   commit: a1b2c3d
+#   pr: "42"
+#   compiler: gcc11
+#   batch_job_id: abc-123
+#   build_identity: ufo-gcc11
+#   public_log_url: https://.../ufo-gcc11-xxxx.html
+#   start_time: 2026-06-03T12:00:00Z
+#   events:
+#     - {time: 2026-06-03T12:01:00Z, event: configure, status: success}
+#     - {time: 2026-06-03T12:45:00Z, event: unit_test, status: failure, passed: 10, failed: 2}
+
+# Status log path. Normally exported by bootstrap_test.sh so the uploader
+# shares the same path.
+export STATUS_LOG="${STATUS_LOG:-/tmp/status.log}"
+
+# Initialize the status log document. Call once at the start of the test run.
+util.status_log_init() {
+    local ts
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    cat > "${STATUS_LOG}" <<EOF
+repo: ${TRIGGER_REPO_FULL}
+commit: ${TRIGGER_SHA}
+pr: "${TRIGGER_PR}"
+compiler: ${JEDI_COMPILER}
+scheduled: "${IS_SCHEDULED:-no}"
+batch_job_id: ${AWS_BATCH_JOB_ID}
+build_identity: ${BUILD_IDENTITY}
+public_log_url: ${PUBLIC_LOG_URL}
+start_time: ${ts}
+events:
+EOF
+}
+
+# Append a single lifecycle event to the status log.
+# Args:
+#     $1: event name (e.g. "configure", "build", "unit_test", "cdash_upload").
+#     $2: status (e.g. "start", "success", "failure", "skipped").
+#     $3: (optional) free-form human-readable detail string, defaults to "".
+util.status_log_event() {
+    local event="$1"
+    local status="$2"
+    local detail="${3:-}"
+    local ts
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf "  - " >> "${STATUS_LOG}"
+    jq -cn --arg time "${ts}" --arg event "${event}" --arg status "${status}" --arg detail "${detail}" \
+        '{time: $time, event: $event, status: $status, detail: $detail}' >> "${STATUS_LOG}"
+}
+
+# Append a test-result event, with status and test counts parsed from a ctest
+# Test.xml by check_run.py.
+# Args:
+#     $1: event name ("unit_test" or "integration_test").
+#     $2: path to the ctest Test.xml file.
+util.status_log_test_result() {
+    local event="$1"
+    local test_xml="$2"
+    local ts
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    # Parse stats; a missing/unparseable Test.xml yields a "no_result" status.
+    local stat_json
+    stat_json="$(${CI_SCRIPTS_DIR}/github_api/check_run.py stat_test_xml --test-xml="${test_xml}")" || stat_json='{"status": "no_result"}'
+
+    # Merge the base event object with the parsed stats. Compact (-c) keeps it
+    # on one line; JSON flow mappings are valid YAML.
+    printf "  - " >> "${STATUS_LOG}"
+    jq -cn --arg time "${ts}" --arg event "${event}" --argjson stat "${stat_json}" \
+        '{time: $time, event: $event} + $stat'  >> "${STATUS_LOG}"
+}
