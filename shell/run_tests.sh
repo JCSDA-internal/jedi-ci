@@ -217,6 +217,9 @@ ecbuild \
       -DCTEST_UPDATE_VERSION_ONLY=FALSE \
       -DBUILD_IODA_CONVERTERS=ON \
       -DBUILD_PYIRI=ON \
+      -DBUILD_ROPP=ON \
+      -DBUILD_RTTOV=ON \
+      -DBUILD_OASIM=ON \
       "${COMPILER_FLAGS[@]}" "${JEDI_BUNDLE_DIR}"
 
 if [ $? -ne 0 ]; then
