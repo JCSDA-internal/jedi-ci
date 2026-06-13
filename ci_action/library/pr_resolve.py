@@ -22,8 +22,6 @@ BUILD_GROUP_RE = re.compile(
 # and pull request number from the captured text.
 BUILD_GROUP_LINK = re.compile(
     r'([A-Za-z0-9._-]{3,30})/([A-Za-z0-9._-]{3,40})(?:#|/pull/)([0-9]{1,7})\s*$')
-CACHE_BEHAVIOR_RE = re.compile(
-    r'^jedi-ci-build-cache\s?=\s?(skip|rebuild)\s*$', re.MULTILINE | re.IGNORECASE)
 DRAFT_PR_RUN_RE = re.compile(
     r'^run-ci-on-draft\s?=\s?([a-zA-Z]{0,10})\s*$', re.MULTILINE | re.IGNORECASE)
 DEBUG_CI_RE = re.compile(
@@ -75,7 +73,6 @@ def read_test_annotations(
         pr_payload: Union[Mapping[str, Any], None],
         testmode: bool,
         build_group_regex=BUILD_GROUP_RE,
-        cache_regex=CACHE_BEHAVIOR_RE,
         draft_regex=DRAFT_PR_RUN_RE,
         debug_regex=DEBUG_CI_RE,
         test_select_regex=CI_TEST_SELECT_RE,
@@ -116,12 +113,6 @@ def read_test_annotations(
         # the build group PR map since it will be used for bundle rewriting.
         repo_name, org = github_client.get_repo_tuple_from_github_uri(repo_uri=repo_uri)
         build_group_pr_map[f'{org.lower()}/{repo_name.lower()}'] = int(pr_number)
-
-    # Cache behavior: "rebuild" is no longer supported.
-    cache_behavior = cache_regex.findall(pr_body)
-    if cache_behavior and cache_behavior[0].lower() == 'rebuild':
-        raise Exception('Cache rebuild (annotation "jedi-ci-build-cache=rebuild")'
-                        ' is no longer supported.')
 
     # Draft pull requests must be annotated for tests to run. If a pull request
     # is a draft pull request, the tests will be skipped unless the author
