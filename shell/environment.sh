@@ -34,7 +34,6 @@ fi
 if [ ! -d "${WORKDIR}" ]; then
     mkdir -p "${WORKDIR}"
 fi
-mkdir "${WORKDIR}"
 mkdir "${WORKDIR}/build"
 mkdir "${WORKDIR}/build/module"
 export BUILD_DIR="${WORKDIR}/build"

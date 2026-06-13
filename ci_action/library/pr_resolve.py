@@ -48,11 +48,6 @@ class TestAnnotations(NamedTuple):
     # used to generate the pull request build group.
     build_group_map: Mapping[str, int]
 
-    # A string value representing a json boolean ("true" or "false"), this is
-    # passed to the build-info json file. If set to "true" the test runner will
-    # not read from the cache and will build all code.
-    skip_cache: str
-
     # If True, a 2-hour sleep will be added to the conclusion of a test.
     debug_mode: bool
 
@@ -122,14 +117,11 @@ def read_test_annotations(
         repo_name, org = github_client.get_repo_tuple_from_github_uri(repo_uri=repo_uri)
         build_group_pr_map[f'{org.lower()}/{repo_name.lower()}'] = int(pr_number)
 
-    # Cache behavior: "rebuild" is no longer supported. Only 'skip'.
-    skip_cache = 'false'
+    # Cache behavior: "rebuild" is no longer supported.
     cache_behavior = cache_regex.findall(pr_body)
     if cache_behavior and cache_behavior[0].lower() == 'rebuild':
         raise Exception('Cache rebuild (annotation "jedi-ci-build-cache=rebuild")'
                         ' is no longer supported.')
-    if cache_behavior and cache_behavior[0].lower() == 'skip':
-        skip_cache = 'true'
 
     # Draft pull requests must be annotated for tests to run. If a pull request
     # is a draft pull request, the tests will be skipped unless the author
@@ -167,7 +159,6 @@ def read_test_annotations(
 
     return TestAnnotations(
         build_group_map=build_group_pr_map,
-        skip_cache=skip_cache,
         debug_mode=debug_mode,
         next_ci_suffix=next_ci_suffix,
         test_select=test_select,

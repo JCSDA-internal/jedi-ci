@@ -102,11 +102,6 @@ EOF
 echo "Fortran compiler version"
 $FC -v
 
-# For local testing, check runs are created by this script.
-if [ "${CREATE_CHECK_RUNS}" == "yes" ]; then
-    export CHECK_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL $TRIGGER_SHA)
-fi
-
 echo "--------------------------------------------------------------"
 echo "Platform debug info"
 echo "--------------------------------------------------------------"
@@ -186,7 +181,6 @@ mkdir "${JEDI_BUNDLE_DIR}/cmake"
 cp "${SCRIPT_DIR}/ctest_assets/CTestConfig.cmake"       "${JEDI_BUNDLE_DIR}/"
 cp "${SCRIPT_DIR}/ctest_assets/CTestCustom.ctest.in"    "${JEDI_BUNDLE_DIR}/cmake/"
 cp "${SCRIPT_DIR}/ctest_assets/cdash-integration.cmake" "${JEDI_BUNDLE_DIR}/cmake/"
-sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#TEST_TARGET_NAME#${TRIGGER_REPO}#g" "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 

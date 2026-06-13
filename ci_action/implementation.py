@@ -156,7 +156,6 @@ def prepare_and_launch_ci_test(
     else:
         test_annotations = pr_resolve.TestAnnotations(
             build_group_map={},  # No build group for nightly runs.
-            skip_cache='false',
             debug_mode=False,
             next_ci_suffix='',  # No suffix, use primary build environment.
             test_select='random',

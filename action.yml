@@ -19,10 +19,6 @@ inputs:
     description: 'Test script to run (must be in //jedi-ci/shell/)'
     required: false
     default: 'run_tests.sh'
-  target_repo_dir:
-    description: 'v2 deprecated'
-    required: false
-    default: ''
   bundle_repository:
     description: 'Repository to use when cloning the bundle.'
     required: false
@@ -33,18 +29,6 @@ inputs:
     default: 'develop'
   unittest_tag:
     description: 'CMake tag used to execute unit tests.'
-    required: false
-    default: ''
-  unittest_dependencies:
-    description: 'v2 deprecated'
-    required: false
-    default: ''
-  test_dependencies:
-    description: 'v2 deprecated'
-    required: false
-    default: ''
-  test_strategy:
-    description: 'v2 deprecated'
     required: false
     default: ''
   self_test:
