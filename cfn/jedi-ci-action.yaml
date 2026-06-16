@@ -235,7 +235,9 @@ Resources:
                 "arn:aws:s3:::${CachingBucketName}",
                 "arn:aws:s3:::${CachingBucketName}/*",
                 "arn:aws:s3:::${BuildInfoBucketName}",
-                "arn:aws:s3:::${BuildInfoBucketName}/*"
+                "arn:aws:s3:::${BuildInfoBucketName}/*",
+                "arn:aws:s3:::${PublicLogsBucketName}",
+                "arn:aws:s3:::${PublicLogsBucketName}/*"
               ],
               "Action": [
                 "s3:GetObject",
