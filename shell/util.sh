@@ -265,15 +265,20 @@ util.ctest_LE_flag() {
 # to the public bucket for aggregation into a global status dashboard. Unlike
 # CDash, this captures failures before or during configure/build.
 #
+# Note the status_log_schema field exists to allow incompatible edits to the
+# schema of this log. Generally it should only be updated if deleting fields.
+#
 # Example output:
 #
 #   repo: JCSDA/ufo
 #   commit: a1b2c3d
+#   status_log_schema: 1
 #   pr: "42"
 #   compiler: gcc11
 #   batch_job_id: abc-123
 #   build_identity: ufo-gcc11
 #   public_log_url: https://.../ufo-gcc11-xxxx.html
+#   check_run_id: 81633945680
 #   start_time: 2026-06-03T12:00:00Z
 #   events:
 #     - {time: 2026-06-03T12:01:00Z, event: configure, status: success}
@@ -290,12 +295,14 @@ util.status_log_init() {
     cat > "${STATUS_LOG}" <<EOF
 repo: ${TRIGGER_REPO_FULL}
 commit: ${TRIGGER_SHA}
+status_log_schema: 1
 pr: "${TRIGGER_PR}"
 compiler: ${JEDI_COMPILER}
 scheduled: "${IS_SCHEDULED:-no}"
 batch_job_id: ${AWS_BATCH_JOB_ID}
 build_identity: ${BUILD_IDENTITY}
 public_log_url: ${PUBLIC_LOG_URL}
+check_run_id: ${CHECK_RUN_ID:-0}
 start_time: ${ts}
 events:
 EOF
@@ -304,7 +311,7 @@ EOF
 # Append a single lifecycle event to the status log.
 # Args:
 #     $1: event name (e.g. "configure", "build", "unit_test", "cdash_upload").
-#     $2: status (e.g. "start", "success", "failure", "skipped").
+#     $2: status (e.g. "success", "failure", "skipped").
 #     $3: (optional) free-form human-readable detail string, defaults to "".
 util.status_log_event() {
     local event="$1"
