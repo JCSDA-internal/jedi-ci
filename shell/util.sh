@@ -311,7 +311,7 @@ EOF
 # Append a single lifecycle event to the status log.
 # Args:
 #     $1: event name (e.g. "configure", "build", "unit_test", "cdash_upload").
-#     $2: status (e.g. "start", "success", "failure", "skipped").
+#     $2: status (e.g. "success", "failure", "skipped").
 #     $3: (optional) free-form human-readable detail string, defaults to "".
 util.status_log_event() {
     local event="$1"
