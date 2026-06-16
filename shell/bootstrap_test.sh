@@ -38,8 +38,7 @@ handle_preemption() {
     PREEMPTION_HANDLED=1
     echo "Runner preemption signal received; flushing logs before exit."
     kill "$MONITOR_PID" 2>/dev/null || true
-    [ -f "$STATUS_LOG" ] && util.status_log_event "run_canceled" "success" \
-        "Test was canceled or preempted externally"
+    [ -f "$STATUS_LOG" ] && util.status_log_event "run" "preempted" "Test was canceled or preempted externally"
     upload_logs
     exit 143  # 128 + SIGTERM
 }
