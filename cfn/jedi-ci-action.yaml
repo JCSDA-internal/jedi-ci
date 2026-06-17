@@ -353,6 +353,8 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - !Ref SsmPolicyForServiceRole
+        # sccache authenticates to the build cache with the instance-role credentials (via IMDS).
+        - !Ref BatchBuildContainerIamPolicy
   IamInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
