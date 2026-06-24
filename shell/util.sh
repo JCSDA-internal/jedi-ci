@@ -52,26 +52,6 @@ util.create_cdash_url() {
     echo "${CDASH_URL}/viewTest.php?buildid=$buildID"
 }
 
-# Create a new check run in the queued state.
-# Takes three arguments:
-#     $1: Repository name in "owner/repo" format.
-#     $2: trigger commit sha hash.
-util.check_run_new() {
-    if [ $SKIP_GITHUB_CHECK_RUNS = 'yes' ]; then
-        return 0
-    fi
-    repo=$1
-    commit_sha=$2
-    ${CI_SCRIPTS_DIR}/github_api/check_run.py new \
-        --app-private-key="${GITHUB_APP_PRIVATE_KEY_FILE}" \
-        --app-id="${GITHUB_APP_ID}" \
-        --repo=$repo \
-        --commit=$commit_sha \
-        --test-platform=${JEDI_COMPILER} \
-        --ecs-metadata-uri="${ECS_CONTAINER_METADATA_URI_V4}" \
-        --batch-task-id="${AWS_BATCH_JOB_ID}"
-}
-
 # Update a check run setting the status to failure and giving a simple
 # reason for the failure like "compile failed" or similar. Args:
 #     $1: Repository name in "owner/repo" format.

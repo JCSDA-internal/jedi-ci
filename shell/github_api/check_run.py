@@ -133,16 +133,12 @@ ALLOWED_CONCLUSIONS = [
     "skipped",
     "timed_out",
 ]
-NotSet = github.GithubObject.NotSet
 
 
 # Arguments common to sub-commands.
 PARSER = argparse.ArgumentParser()
 
 SUBPARSERS = PARSER.add_subparsers(help='sub-command help')
-PARSER_NEW = SUBPARSERS.add_parser(
-    'new',
-    help='create a new queued check run for a commit to a repository.')
 PARSER_UPDATE = SUBPARSERS.add_parser(
     'update',
     help='Update an existing check run.')
@@ -153,7 +149,7 @@ PARSER_END = SUBPARSERS.add_parser(
 
 
 # Common arguments for parsers that interact with the API.
-for subparser in [PARSER_NEW, PARSER_UPDATE, PARSER_END]:
+for subparser in [PARSER_UPDATE, PARSER_END]:
     subparser.add_argument(
         '--app-id',
         required=True,
@@ -166,25 +162,6 @@ for subparser in [PARSER_NEW, PARSER_UPDATE, PARSER_END]:
         '--repo',
         required=True,
         help='The repository path in the form of "user/repo-name".')
-
-
-PARSER_NEW.add_argument(
-    '--commit',
-    required=True,
-    help='The full commit hash of the test target.')
-PARSER_NEW.add_argument(
-    '--test-platform',
-    required=True,
-    help='The test platform used for test output and workflow titles.')
-PARSER_NEW.add_argument(
-    '--ecs-metadata-uri',
-    default='',
-    help='URI for the AWS ECS metadata server (generally found using the '
-         'ECS_CONTAINER_METADATA_URI_V4 environment variable).')
-PARSER_NEW.add_argument(
-    '--batch-task-id',
-    default='',
-    help='The AWS Batch task ID.')
 
 
 PARSER_UPDATE.add_argument(
@@ -490,39 +467,9 @@ def get_authed_github_client(app_id, app_private_key, repo_owner, repo_name):
     return github.Github(app_auth=auth)
 
 
-def _create_check_run(app_client, repo, commit, run_name, details_url=NotSet):
-    """Create a new GitHub check run."""
-    repo_object = app_client.get_repo(repo)
-    check_run = repo_object.create_check_run(
-        run_name,
-        commit,
-        details_url=details_url,
-        status='queued',
-    )
-    return check_run
-
-
 #
 # The following functions are receivers for the argparse subparsers.
 #
-
-
-def check_run_new(args, app_id, app_key, repo_owner, repo_name):
-    """Create a new check run. Used for "new" subparser."""
-    commit = args.commit
-    client = get_authed_github_client(
-        app_id, app_key, repo_owner, repo_name)
-    test_name = f'JEDI CI test: {args.test_platform}'
-
-    metadata = ECSTaskMetaData(args.ecs_metadata_uri, args.batch_task_id)
-    run = _create_check_run(
-        app_client=client,
-        repo=f'{repo_owner}/{repo_name}',
-        commit=commit,
-        run_name=test_name,
-        details_url=metadata.batch_task_url())
-
-    print(f'{run.id}')
 
 
 def check_run_update(args, app_id, app_key, repo_owner, repo_name):
@@ -685,7 +632,6 @@ if __name__ == '__main__':
     # Setting the arg "func" value must be done at the end of this file due to
     # Python's lexical scoping of identifiers.
     PARSER.set_defaults(func=print_help)
-    PARSER_NEW.set_defaults(func=check_run_new)
     PARSER_UPDATE.set_defaults(func=check_run_update)
     PARSER_END.set_defaults(func=check_run_end)
     PARSER_EVAL.set_defaults(func=eval_test_xml)
