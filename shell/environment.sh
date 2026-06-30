@@ -72,6 +72,10 @@ if [ $TRIGGER_REPO = "ufo" ]; then
   COMPILER_FLAGS+=( -DUFO_TEST_TIER=2 )
 fi
 
+if [ $TRIGGER_REPO = "mist" ]; then
+  COMPILER_FLAGS+=( -DBUILD_MIST=ON )
+fi
+
 
 # Make sure the private key is a file.
 if [ -n "$GITHUB_APP_PRIVATE_KEY" ]; then
