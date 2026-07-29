@@ -4,11 +4,44 @@ source /opt/spack-environment/activate.sh
 # Directory of this script.
 export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Setup public log stream.
+# Setup public log stream. Objects are sharded under a YYYYMMDD date prefix to
+# keep later ingestion jobs simple.
 _RANDOM="$(head /dev/urandom | base32 | head -c 8)"
 _REGION="$(aws s3api get-bucket-location --bucket $PUBLIC_LOGS_BUCKET | jq -r .LocationConstraint)"
-export PUBLIC_LOG_S3="s3://${PUBLIC_LOGS_BUCKET}/${BUILD_IDENTITY}-${_RANDOM}.html"
-export PUBLIC_LOG_URL="https://${PUBLIC_LOGS_BUCKET}.s3.${_REGION}.amazonaws.com/${BUILD_IDENTITY}-${_RANDOM}.html"
+_DATE="$(date -u +%Y%m%d)"
+export PUBLIC_LOG_S3="s3://${PUBLIC_LOGS_BUCKET}/${_DATE}/${BUILD_IDENTITY}-${_RANDOM}.html"
+export PUBLIC_LOG_URL="https://${PUBLIC_LOGS_BUCKET}.s3.${_REGION}.amazonaws.com/${_DATE}/${BUILD_IDENTITY}-${_RANDOM}.html"
+
+# Structured status log. The test script appends YAML lifecycle events here
+# (see util.status_log_* functions); we upload it to the public bucket on the
+# same cadence as the build logs so global test-system status can be consumed
+# later to build a dashboard.
+export STATUS_LOG="/tmp/status.log"
+export STATUS_LOG_S3="s3://${PUBLIC_LOGS_BUCKET}/${_DATE}/${BUILD_IDENTITY}-${_RANDOM}.status.yaml"
+export STATUS_LOG_URL="https://${PUBLIC_LOGS_BUCKET}.s3.${_REGION}.amazonaws.com/${_DATE}/${BUILD_IDENTITY}-${_RANDOM}.status.yaml"
+
+# Sourced for util.status_log_event, used by the preemption handler.
+source "$SCRIPT_DIR/util.sh"
+
+# Convert build logs to HTML and push logs + status log to the public bucket.
+upload_logs() {
+    cat /tmp/build_logs.txt | python -m ansi2html -l > /tmp/build_logs.html
+    aws s3 cp /tmp/build_logs.html $PUBLIC_LOG_S3 --content-type "text/html"
+    [ -f "$STATUS_LOG" ] && aws s3 cp "$STATUS_LOG" "$STATUS_LOG_S3" --content-type "text/plain"
+}
+
+# AWS Batch/Spot sends SIGTERM before reclaiming the instance. Flush logs to S3
+# before the SIGKILL grace period expires rather than losing the upload window.
+PREEMPTION_HANDLED=0
+handle_preemption() {
+    [ "$PREEMPTION_HANDLED" -eq 1 ] && return  # re-entrancy guard
+    PREEMPTION_HANDLED=1
+    echo "Runner preemption signal received; flushing logs before exit."
+    kill "$MONITOR_PID" 2>/dev/null || true
+    [ -f "$STATUS_LOG" ] && util.status_log_event "run" "preempted" "Test was canceled or preempted externally"
+    upload_logs
+    exit 143  # 128 + SIGTERM
+}
 
 # Setup GitHub app credentials.
 cp $SCRIPT_DIR/git_askPass_app_credentials.py /bin/git_askPass_app_credentials.py
@@ -49,8 +82,7 @@ sleep 30
 MONITOR_UPLOADS=0
 SLEEP_TIME=120  # 2 minutes
 while kill -0 $TEST_PID 2>/dev/null; do
-    cat /tmp/build_logs.txt | python -m ansi2html -l > /tmp/build_logs.html
-    aws s3 cp /tmp/build_logs.html $PUBLIC_LOG_S3 --content-type "text/html"
+    upload_logs
     sleep $SLEEP_TIME
     MONITOR_UPLOADS=$((MONITOR_UPLOADS + 1))
     if [[ $MONITOR_UPLOADS == 5 ]]; then
@@ -58,6 +90,9 @@ while kill -0 $TEST_PID 2>/dev/null; do
     fi
 done &
 MONITOR_PID=$!
+
+# Catch preemption (Batch/Spot SIGTERM) during the long test window.
+trap handle_preemption SIGTERM SIGINT
 
 wait $TEST_PID
 TEST_EXIT_CODE=$?
@@ -68,6 +103,5 @@ kill $MONITOR_PID 2>/dev/null || true
 sleep 1
 
 set -x
-cat /tmp/build_logs.txt | python -m ansi2html -l > /tmp/build_logs.html
-aws s3 cp /tmp/build_logs.html $PUBLIC_LOG_S3 --content-type "text/html"
+upload_logs
 df -h

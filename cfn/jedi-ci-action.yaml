@@ -49,10 +49,6 @@ Parameters:
     Description: The name of the S3 bucket to store public build logs.
     Type: String
     Default: jedi-ci-build-public-logs
-  CIRepoBranchName:
-    Description: The branch name for the CI repo.
-    Type: String
-    Default: develop
   TemplateBucketName:
     Type: String
     Description: The name of the bucket that contains CloudFormation templates and CI bootstrap code.
@@ -239,7 +235,9 @@ Resources:
                 "arn:aws:s3:::${CachingBucketName}",
                 "arn:aws:s3:::${CachingBucketName}/*",
                 "arn:aws:s3:::${BuildInfoBucketName}",
-                "arn:aws:s3:::${BuildInfoBucketName}/*"
+                "arn:aws:s3:::${BuildInfoBucketName}/*",
+                "arn:aws:s3:::${PublicLogsBucketName}",
+                "arn:aws:s3:::${PublicLogsBucketName}/*"
               ],
               "Action": [
                 "s3:GetObject",
@@ -355,6 +353,8 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - !Ref SsmPolicyForServiceRole
+        # sccache authenticates to the build cache with the instance-role credentials (via IMDS).
+        - !Ref BatchBuildContainerIamPolicy
   IamInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -517,14 +517,10 @@ Resources:
             Value: !Ref GitHubAppID
           - Name: GITHUB_INSTALL_ID
             Value: !Ref GitHubInstallID
-          - Name: CI_REPOSITORY_BRANCH
-            Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
           - Name: JEDI_COMPILER
             Value: gcc11
-          - Name: CONTAINER_VERSION
-            Value: latest
           - Name: TRIGGER_REPO_FULL
             Value: unknown
           - Name: CONFIGURED_BUNDLE_TARBALL_S3
@@ -538,10 +534,6 @@ Resources:
           - Name: TRIGGER_SHA
             Value: ""
           - Name: TRIGGER_PR
-            Value: ""
-          - Name: INTEGRATION_RUN_ID
-            Value: ""
-          - Name: UNIT_RUN_ID
             Value: ""
         Secrets:
           - Name: GITHUB_APP_PRIVATE_KEY
@@ -574,14 +566,10 @@ Resources:
             Value: !Ref GitHubAppID
           - Name: GITHUB_INSTALL_ID
             Value: !Ref GitHubInstallID
-          - Name: CI_REPOSITORY_BRANCH
-            Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
           - Name: JEDI_COMPILER
             Value: gcc
-          - Name: CONTAINER_VERSION
-            Value: latest
           - Name: TRIGGER_REPO_FULL
             Value: unknown
           - Name: CONFIGURED_BUNDLE_TARBALL_S3
@@ -595,10 +583,6 @@ Resources:
           - Name: TRIGGER_SHA
             Value: ""
           - Name: TRIGGER_PR
-            Value: ""
-          - Name: INTEGRATION_RUN_ID
-            Value: ""
-          - Name: UNIT_RUN_ID
             Value: ""
         Secrets:
           - Name: GITHUB_APP_PRIVATE_KEY
@@ -631,14 +615,10 @@ Resources:
             Value: !Ref GitHubAppID
           - Name: GITHUB_INSTALL_ID
             Value: !Ref GitHubInstallID
-          - Name: CI_REPOSITORY_BRANCH
-            Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
           - Name: JEDI_COMPILER
             Value: intel
-          - Name: CONTAINER_VERSION
-            Value: latest
           - Name: TRIGGER_REPO_FULL
             Value: unknown
           - Name: CONFIGURED_BUNDLE_TARBALL_S3
@@ -652,10 +632,6 @@ Resources:
           - Name: TRIGGER_SHA
             Value: ""
           - Name: TRIGGER_PR
-            Value: ""
-          - Name: INTEGRATION_RUN_ID
-            Value: ""
-          - Name: UNIT_RUN_ID
             Value: ""
         Secrets:
           - Name: GITHUB_APP_PRIVATE_KEY
@@ -690,14 +666,10 @@ Resources:
             Value: !Ref GitHubAppID
           - Name: GITHUB_INSTALL_ID
             Value: !Ref GitHubInstallID
-          - Name: CI_REPOSITORY_BRANCH
-            Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
           - Name: JEDI_COMPILER
             Value: gcc11
-          - Name: CONTAINER_VERSION
-            Value: next
           - Name: TRIGGER_REPO_FULL
             Value: unknown
           - Name: CONFIGURED_BUNDLE_TARBALL_S3
@@ -711,10 +683,6 @@ Resources:
           - Name: TRIGGER_SHA
             Value: ""
           - Name: TRIGGER_PR
-            Value: ""
-          - Name: INTEGRATION_RUN_ID
-            Value: ""
-          - Name: UNIT_RUN_ID
             Value: ""
         Secrets:
           - Name: GITHUB_APP_PRIVATE_KEY
@@ -747,14 +715,10 @@ Resources:
             Value: !Ref GitHubAppID
           - Name: GITHUB_INSTALL_ID
             Value: !Ref GitHubInstallID
-          - Name: CI_REPOSITORY_BRANCH
-            Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
           - Name: JEDI_COMPILER
             Value: gcc
-          - Name: CONTAINER_VERSION
-            Value: next
           - Name: TRIGGER_REPO_FULL
             Value: unknown
           - Name: CONFIGURED_BUNDLE_TARBALL_S3
@@ -768,10 +732,6 @@ Resources:
           - Name: TRIGGER_SHA
             Value: ""
           - Name: TRIGGER_PR
-            Value: ""
-          - Name: INTEGRATION_RUN_ID
-            Value: ""
-          - Name: UNIT_RUN_ID
             Value: ""
         Secrets:
           - Name: GITHUB_APP_PRIVATE_KEY
@@ -804,14 +764,10 @@ Resources:
             Value: !Ref GitHubAppID
           - Name: GITHUB_INSTALL_ID
             Value: !Ref GitHubInstallID
-          - Name: CI_REPOSITORY_BRANCH
-            Value: !Ref CIRepoBranchName
           - Name: PUBLIC_LOGS_BUCKET
             Value: !Ref PublicLogsBucketName
           - Name: JEDI_COMPILER
             Value: intel
-          - Name: CONTAINER_VERSION
-            Value: next
           - Name: TRIGGER_REPO_FULL
             Value: unknown
           - Name: CONFIGURED_BUNDLE_TARBALL_S3
@@ -825,10 +781,6 @@ Resources:
           - Name: TRIGGER_SHA
             Value: ""
           - Name: TRIGGER_PR
-            Value: ""
-          - Name: INTEGRATION_RUN_ID
-            Value: ""
-          - Name: UNIT_RUN_ID
             Value: ""
         Secrets:
           - Name: GITHUB_APP_PRIVATE_KEY

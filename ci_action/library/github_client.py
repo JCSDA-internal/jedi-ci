@@ -15,15 +15,12 @@ LOG = logging.getLogger("github_client")
 
 GITHUB_URI = "https://github.com/"
 
-UNIT_TEST_PREFIX = 'JEDI unit test'
-INTEGRATION_TEST_PREFIX = 'JEDI integration test'
+JEDI_CI_PREFIX = 'JEDI CI'
 
 
 def _check_run_name_is_jedi(check_run_name: str) -> bool:
-    """Check if a check run name is a JEDI unit or integration test."""
-    starts_with_unit_test = check_run_name.startswith(UNIT_TEST_PREFIX)
-    starts_with_integration_test = check_run_name.startswith(INTEGRATION_TEST_PREFIX)
-    return starts_with_unit_test or starts_with_integration_test
+    """Check if a check run name is a JEDI CI check run (v2 or legacy v1)."""
+    return check_run_name.startswith(JEDI_CI_PREFIX)
 
 
 class GitHubAppClientManager(object):
@@ -176,7 +173,7 @@ def create_check_run(prefix, build_environment, repo, owner, trigger_commit, nex
     """Create check run for a given build environment.
 
     Args:
-        prefix: the prefix of the check run name.
+        prefix: the prefix of the check run name (use JEDI_CI_PREFIX).
         build_environment: intel, gcc, or gcc11 (or any other supported build
             environment).
         repo: The name of the repository.

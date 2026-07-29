@@ -196,7 +196,6 @@ class CMakeFile:
         Args:
             file_object: The file to write to.
             enabled_bundles: A container of bundle names to enable.
-            rewrite_rules: A mapping of bundle names to tags.
             build_group_commit_map: A mapping of "org/repo" keys to build group commit info.
                 The build group commit info is a dictionary with the following structure:
                 {
@@ -211,14 +210,8 @@ class CMakeFile:
         """
         if enabled_bundles is None:
             enabled_bundles = set()
-        if rewrite_rules is None:
-            rewrite_rules = {}
         if build_group_commit_map is None:
             build_group_commit_map = {}
-
-        # Ensure rewrite_rules and build_group_commit_map are mutually exclusive
-        if rewrite_rules and build_group_commit_map:
-            raise ValueError("rewrite_rules and build_group_commit_map cannot both be provided")
 
         lines = []
         for i, line in enumerate(self.lines):
@@ -242,12 +235,6 @@ class CMakeFile:
                 lines.append(bundle_line.rewrite(git_repo=git_repo, tag=commit_hash) + '\n')
                 continue
 
-            # If the line has a rewrite rule, use it.
-            if bundle_line.project_name in rewrite_rules:
-                tag = rewrite_rules[bundle_line.project_name]
-                lines.append(bundle_line.rewrite(tag=tag) + '\n')
-                continue
-
             # Finally if the line is enabled and has no rewrite, use the original line.
             lines.append(bundle_line.original_line() + '\n')
 
@@ -259,36 +246,9 @@ class CMakeFile:
         enabled_bundles = set(self.bundle_line_names.keys())
         self._rewrite_file_implementation(file_object, enabled_bundles=enabled_bundles)
 
-    def rewrite_whitelist(self,
-                          file_object,
-                          enabled_bundles: Container[str],
-                          rewrite_rules: dict[str, str]):
-        """Rewrite the CMakeFile object to the file_object."""
-        self._rewrite_file_implementation(file_object, enabled_bundles, rewrite_rules)
-
-    def rewrite_blacklist(self,
-                          file_object,
-                          disabled_bundles: Container[str],
-                          rewrite_rules: dict[str, str]):
+    def rewrite_from_build_groups(self,
+                                  file_object,
+                                  build_group_commit_map: Dict[str, Dict[str, Any]]):
         """Rewrite the CMakeFile object to the file_object."""
         enabled_bundles = set(self.bundle_line_names.keys())
-        for bundle in disabled_bundles:
-            enabled_bundles.discard(bundle)
-        self._rewrite_file_implementation(file_object, enabled_bundles, rewrite_rules)
-
-    def rewrite_build_group_whitelist(self,
-                                      file_object,
-                                      enabled_bundles: Container[str],
-                                      build_group_commit_map: Dict[str, Dict[str, Any]]):
-        """Rewrite the CMakeFile object to the file_object."""
-        self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)  # noqa: E501
-
-    def rewrite_build_group_blacklist(self,
-                                      file_object,
-                                      disabled_bundles: Container[str],
-                                      build_group_commit_map: Dict[str, Dict[str, Any]]):
-        """Rewrite the CMakeFile object to the file_object."""
-        enabled_bundles = set(self.bundle_line_names.keys())
-        for bundle in disabled_bundles:
-            enabled_bundles.discard(bundle)
         self._rewrite_file_implementation(file_object, enabled_bundles, build_group_commit_map=build_group_commit_map)  # noqa: E501

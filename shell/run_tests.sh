@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
 # This file is the end-to-end test execution orchestrator used by the CI
-# system. This test script is designed for components with many downstream
-# dependent packages (like oops) and runs two builds, the first is a minimal
-# build with no downstream packages which is used to run unit tests for the
-# target repository, the second is a full build with all downstream packages
-# which is used to run integration tests. This script can be thought of as
-# being split into several sections.
+# system. This test script builds the full jedi-bundle once, then runs unit
+# tests and integration tests sequentially appending the results to a single
+# GitHub check run.
+#
+# The script can be thought of as being split into several sections.
 #
 #   1) Environment validation and variable definitions. Several shell vars are
 #      used or expected for this script to execute. This section validates the
@@ -68,6 +67,11 @@ if [ -z "${TRIGGER_REPO_FULL}" ]; then
     echo "Var TRIGGER_REPO_FULL must be set."
     valid_environment_found="no"
 fi
+if [ -z "${CACHE_BUCKET}" ]; then
+    # This variable is set by AWS Batch.
+    echo "Var CACHE_BUCKET must be set."
+    valid_environment_found="no"
+fi
 
 
 if [ $valid_environment_found == "no" ]; then
@@ -92,38 +96,11 @@ CI_SCRIPTS_DIR=${CI_SCRIPTS_DIR}
 CC="${CC}"
 CXX="${CXX}"
 FC="${FC}"
-UNIT_DEPENDENCIES=${UNIT_DEPENDENCIES}
-UNIT_RUN_ID=${UNIT_RUN_ID}
-INTEGRATION_RUN_ID=${INTEGRATION_RUN_ID}
+CHECK_RUN_ID=${CHECK_RUN_ID}
 EOF
 
 echo "Fortran compiler version"
 $FC -v
-
-# The check run IDs might not both be set depending on the test strategy.
-# In order to handle all test strategies, we will check these values
-# address them in order of their use. Unused test IDs will be set to 0
-# and those are handled gracefully by the helper functions which treat
-# update and modify calls as a no-op.
-if [ $UNIT_RUN_ID -ne 0 ] && [ $INTEGRATION_RUN_ID -ne 0 ]; then
-    export FIRST_CHECK_RUN_ID=$UNIT_RUN_ID
-    export SECOND_CHECK_RUN_ID=$INTEGRATION_RUN_ID
-elif [ $UNIT_RUN_ID -ne 0 ] && [ $INTEGRATION_RUN_ID -eq 0 ]; then
-    export FIRST_CHECK_RUN_ID=$UNIT_RUN_ID
-    export SECOND_CHECK_RUN_ID=0
-elif [ $UNIT_RUN_ID -eq 0 ]&& [ $INTEGRATION_RUN_ID -ne 0 ]; then
-    export FIRST_CHECK_RUN_ID=$INTEGRATION_RUN_ID
-    export SECOND_CHECK_RUN_ID=0
-fi
-
-# For local testing, check runs are created by this script in which case the prior logic
-# is overridden.
-if [ "${CREATE_CHECK_RUNS}" == "yes" ]; then
-    export FIRST_CHECK_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "unit" $TRIGGER_SHA)
-    export SECOND_CHECK_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "integration" $TRIGGER_SHA)
-    export UNIT_RUN_ID=$FIRST_CHECK_RUN_ID
-    export INTEGRATION_RUN_ID=$SECOND_CHECK_RUN_ID
-fi
 
 echo "--------------------------------------------------------------"
 echo "Platform debug info"
@@ -140,10 +117,29 @@ ulimit -a
 # From this point forward we are executing the test and sending debug to stderr.
 set -x
 
+#
+# Setup sccache for caching. This will be handled by the image in the future but temporarily do setup here.
+#
+
+if [[ ! $(which sccache) ]]; then
+    wget --no-verbose https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz
+    tar -xvf sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz
+    mv ./sccache-v0.14.0-x86_64-unknown-linux-musl/sccache /usr/local/bin/sccache
+    rm -rf sccache-v0.14.0-x86_64-unknown-linux-musl*
+fi
+
+# Export sccache AWS bucket config.
+export SCCACHE_SERVER_UDS="${WORKDIR}/sccache.sock"
+export SCCACHE_BUCKET="${CACHE_BUCKET}"
+export SCCACHE_REGION="us-east-2"
+export SCCACHE_S3_KEY_PREFIX="sccache-$JEDI_COMPILER-$($CC -dumpversion | tr -d '.')"
+sccache --start-server
+
 
 #
 # Setup and run tests.
 #
+
 
 # Temporary bugfix; update awscrt because the spack-provded version is too old.
 # BUG: https://github.com/JCSDA-internal/jedi-ci/issues/50
@@ -152,14 +148,13 @@ pip install --upgrade awscrt
 # Extract just the repo name from the full repository path
 TRIGGER_REPO=$(echo "$TRIGGER_REPO_FULL" | cut -d'/' -f2)
 
-if [ "${CREATE_CHECK_RUNS}" == "yes" ]; then
-    UNIT_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "unit" $TRIGGER_SHA)
-    INTEGRATION_RUN_ID=$(util.check_run_new $TRIGGER_REPO_FULL "integration" $TRIGGER_SHA)
-fi
+# Initialize the structured status log with run metadata. From here on we
+# append lifecycle events (configure, build, test, upload) so overall test
+# system status can be monitored independently of CDash and GitHub check runs.
+util.status_log_init
 
-# Update check-runs to include the batch job URL is included.
-util.check_run_start_build $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
-util.check_run_runner_allocated $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
+# Mark the single check run as building and attach the batch job URL.
+util.check_run_start_build $TRIGGER_REPO_FULL $CHECK_RUN_ID
 
 # Get all GitLFS repositories from s3.
 pushd ${JEDI_BUNDLE_DIR}
@@ -187,50 +182,27 @@ cp "${SCRIPT_DIR}/ctest_assets/CTestConfig.cmake"       "${JEDI_BUNDLE_DIR}/"
 cp "${SCRIPT_DIR}/ctest_assets/CTestCustom.ctest.in"    "${JEDI_BUNDLE_DIR}/cmake/"
 cp "${SCRIPT_DIR}/ctest_assets/cdash-integration.cmake" "${JEDI_BUNDLE_DIR}/cmake/"
 sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
-sed -i "s#CDASH_URL#${CDASH_URL}#g"           "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 sed -i "s#TEST_TARGET_NAME#${TRIGGER_REPO}#g" "${JEDI_BUNDLE_DIR}/CTestConfig.cmake"
 
-# Update the CMakeLists.txt files to include cdash integration. Note that the test may
-# use two different CMakeLists.txt files for unit and integration tests (starting with
-# unit tests) and each file needs the cdash integration. These cmake files are
-# prepared by the GitHub action test launcher.
-if [ -f "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration" ]; then
-    echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
-    echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
-    echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
-    echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration"
-fi
-# Update the unittest CMakeLists.txt file to include cdash integration.
+# Update the CMakeLists.txt file to include cdash integration.
 echo "include(cmake/cdash-integration.cmake)" >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
 echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
 echo "include(CTest)"                         >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
 echo ""                                       >> "${JEDI_BUNDLE_DIR}/CMakeLists.txt"
 
-# Add the oasim, ropp, and rttov compiler flags if the unittests have one
-# of these dependencies. Note that the same compiler flags are used for
-# integration tests, so a package without these unittest dependencies will
-# not build them for integration testing.
-if grep -q -e "oasim" <<< $UNIT_DEPENDENCIES; then
-    COMPILER_FLAGS+=( -DBUILD_OASIM=ON )
-fi
-if  grep -q -e "rttov" <<< $UNIT_DEPENDENCIES; then
-    COMPILER_FLAGS+=( -DBUILD_RTTOV=ON )
-fi
-if  grep -q -e "ropp-ufo" <<< $UNIT_DEPENDENCIES; then
-    COMPILER_FLAGS+=( -DBUILD_ROPP=ON )
-fi
-
-echo "---- JEDI Bundle CMakeLists.txt - unit tests -----"
+echo "---- JEDI Bundle CMakeLists.txt -----"
 cat $JEDI_BUNDLE_DIR/CMakeLists.txt
 echo "-------------------------------------------------------"
 
 #
-# Build and run unit tests.
+# Build the full bundle.
 #
 cd "${BUILD_DIR}"
 
 ecbuild \
       -Wno-dev \
+      -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
       -DBUILD_GSIBEC=ON \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCDASH_OVERRIDE_SYSTEM_NAME="${JEDI_COMPILER}-Container" \
@@ -239,126 +211,96 @@ ecbuild \
       -DCTEST_UPDATE_VERSION_ONLY=FALSE \
       -DBUILD_IODA_CONVERTERS=ON \
       -DBUILD_PYIRI=ON \
+      -DBUILD_ROPP=ON \
+      -DBUILD_RTTOV=ON \
+      -DBUILD_OASIM=ON \
       "${COMPILER_FLAGS[@]}" "${JEDI_BUNDLE_DIR}"
 
 if [ $? -ne 0 ]; then
-    util.check_run_fail $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID "Bundle configuration failed"
-    util.check_run_skip $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
+    util.status_log_event configure failure "Bundle configuration failed"
+    util.check_run_fail $TRIGGER_REPO_FULL $CHECK_RUN_ID "Bundle configuration failed"
     util.evaluate_debug_timer_then_cleanup
     exit 0
 fi
+util.status_log_event configure success
 
 # Back-date source files (search "back-date" in this file for an explanation).
 find $JEDI_BUNDLE_DIR -type f -exec touch -d "$SOURCE_BACKDATE_TIMESTAMP" {} \;
 
 make -j $BUILD_PARALLELISM
 if [ $? -ne 0 ]; then
-    util.check_run_fail $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID "compilation failed"
-    util.check_run_skip $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
+    util.status_log_event build failure "compilation failed"
+    util.check_run_fail $TRIGGER_REPO_FULL $CHECK_RUN_ID "compilation failed"
     util.evaluate_debug_timer_then_cleanup
     exit 0
 fi
+util.status_log_event build success
 
-# If unit run id is 0
-util.check_run_start_test $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID
+# Show sccache debug output.
+sccache --show-stats
 
-# Run unit tests.
-if [ "${UNIT_RUN_ID}" -eq 0 ]; then
-    ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|gsibec|rttov|oasim|ropp-ufo") --timeout 500 -C RelWithDebInfo -M Experimental -T Test
-else
+#
+# Run unit tests (when a UNITTEST_TAG label is configured).
+#
+
+util.check_run_start_test $TRIGGER_REPO_FULL $CHECK_RUN_ID
+
+if [ -n "${UNITTEST_TAG}" ]; then
     ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}") -L "${UNITTEST_TAG}" --timeout 500 -C RelWithDebInfo -M Experimental -T Test
-fi
 
-# Upload ctests.
-ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous
+    # Record unit test pass/fail counts to the status log.
+    util.status_log_test_result unit_test "$(util.find_test_xml)"
 
-# Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved. 
-find ${BUILD_DIR}/Testing -type f
-find "${BUILD_DIR}/Testing" -type f -name "Done.xml" -exec head -n5 {} \;
-CDASH_TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
-ls -al "${BUILD_DIR}/Testing/${CDASH_TEST_TAG}/"
-# End of debug info.
+    # Upload unit test results.
+    if ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous; then
+        util.status_log_event cdash_upload success "unit"
+    else
+        util.status_log_event cdash_upload failure "unit"
+    fi
 
-echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
+    # Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved.
+    find ${BUILD_DIR}/Testing -type f
+    find "${BUILD_DIR}/Testing" -type f -name "Done.xml" -exec head -n5 {} \;
+    CDASH_TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
+    ls -al "${BUILD_DIR}/Testing/${CDASH_TEST_TAG}/"
+    # End of debug info.
 
-# Close out the check run for unit tests and mark success or failure.
-ALLOWED_UNIT_FAIL_RATE=0
-util.check_run_end $TRIGGER_REPO_FULL $FIRST_CHECK_RUN_ID $ALLOWED_UNIT_FAIL_RATE
+    echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 
-# Decision point: if the unit tests failed then we should mark the integration
-# tests as skipped and end test execution.
-if ! util.check_run_eval_test_xml $ALLOWED_UNIT_FAIL_RATE ; then
-    util.check_run_skip $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
-    util.evaluate_debug_timer_then_cleanup
-    exit 0
+    # Evaluate the unit tests for failure. If they failed, update the check run
+    # with failure and the test dashboard link. Otherwise continue to integration tests.
+    ALLOWED_UNIT_FAIL_RATE=0
+    if ! util.check_run_eval_test_xml $ALLOWED_UNIT_FAIL_RATE ; then
+        util.check_run_end $TRIGGER_REPO_FULL $CHECK_RUN_ID $ALLOWED_UNIT_FAIL_RATE
+        util.evaluate_debug_timer_then_cleanup
+        exit 0
+    fi
 fi
 
 
 #
-# Build and run integration tests. This section will not be run if we detect
-# a failure above.
+# Run integration tests.
+#
 
-# If a second build and test execution is needed then we will expect both run IDs
-# to be non-zero. If the second run ID is 0 then we can cleanup and exit early
-if [ "${SECOND_CHECK_RUN_ID}" -eq 0 ]; then
-  util.evaluate_debug_timer_then_cleanup
-  exit 0
+# If no unittest tag is configured, add a junk regex to avoid breaking the label regex.
+if [ -z "${UNITTEST_TAG}" ]; then
+    UNITTEST_TAG="NoTestsShouldMatchThisLabel"
 fi
-
-# Swap out the unittest cmake file for the integration test version. These
-# files were created by the GitHub action test launcher.
-mv ${JEDI_BUNDLE_DIR}/CMakeLists.txt $JEDI_BUNDLE_DIR/CMakeLists.txt.unittest
-cp ${JEDI_BUNDLE_DIR}/CMakeLists.txt.integration $JEDI_BUNDLE_DIR/CMakeLists.txt
-
-echo "---- JEDI Bundle CMakeLists.txt - integration tests -----"
-cat $JEDI_BUNDLE_DIR/CMakeLists.txt
-echo "-------------------------------------------------------"
-
-# Start the integration test run.
-util.check_run_start_build $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
-
-if [ $? -ne 0 ]; then
-    util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "Bundle configuration failed"
-    util.evaluate_debug_timer_then_cleanup
-    exit 0
-fi
-
-ecbuild \
-    -Wno-dev \
-    -DBUILD_GSIBEC=ON \
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DCDASH_OVERRIDE_SYSTEM_NAME="${JEDI_COMPILER}-Container" \
-    -DCDASH_OVERRIDE_SITE=AWSBatch \
-    -DCDASH_OVERRIDE_GIT_BRANCH=${TRIGGER_PR} \
-    -DCTEST_UPDATE_VERSION_ONLY=FALSE \
-    -DBUILD_IODA_CONVERTERS=ON \
-    -DBUILD_PYIRI=ON \
-    "${COMPILER_FLAGS[@]}" "${JEDI_BUNDLE_DIR}"
-if [ $? -ne 0 ]; then
-    util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "ecbuild failed"
-    util.evaluate_debug_timer_then_cleanup
-    exit 0
-fi
-
-# Back-date source files (search "back-date" in this file for an explanation).
-find $JEDI_BUNDLE_DIR -type f -exec touch -d "$SOURCE_BACKDATE_TIMESTAMP" {} \;
-
-make -j $BUILD_PARALLELISM
-if [ $? -ne 0 ]; then
-    util.check_run_fail $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID "compilation failed"
-    util.evaluate_debug_timer_then_cleanup
-    exit 0
-fi
-
-util.check_run_start_test $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID
 
 # Run integration tests.
 ctest $(util.ctest_LE_flag "${ENV_CTEST_EXCLUDES}|${UNITTEST_TAG}|tier2|gsibec|rttov|oasim|ropp-ufo") --timeout 180 -C RelWithDebInfo -T Test
 
-# Upload ctests.
-ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous
+# Record integration test pass/fail counts to the status log.
+util.status_log_test_result integration_test "$(util.find_test_xml)"
 
-# Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved. 
+# Upload ctests.
+if ctest -C RelWithDebInfo -T Submit --track Continuous --group Continuous; then
+    util.status_log_event cdash_upload success "integration"
+else
+    util.status_log_event cdash_upload failure "integration"
+fi
+
+# Debug info for cdash test tags. Do not remove until https://github.com/JCSDA-internal/jedi-ci/issues/70 is resolved.
 find ${BUILD_DIR}/Testing -type f
 find "${BUILD_DIR}/Testing" -type f -name "Done.xml" -exec head -n5 {} \;
 CDASH_TEST_TAG=$(head -1 "${BUILD_DIR}/Testing/TAG")
@@ -367,15 +309,14 @@ ls -al "${BUILD_DIR}/Testing/${CDASH_TEST_TAG}/"
 
 echo "CDash URL: $(util.create_cdash_url "${BUILD_DIR}/Testing")"
 
-# Complete integration tests and allow a failure rate up to 3%
-
 ALLOWED_INTEGRATION_FAIL_RATE=0
-util.check_run_end $TRIGGER_REPO_FULL $SECOND_CHECK_RUN_ID $ALLOWED_INTEGRATION_FAIL_RATE
+util.check_run_end $TRIGGER_REPO_FULL $CHECK_RUN_ID $ALLOWED_INTEGRATION_FAIL_RATE
 
 # Upload codecov data if gcc compiler is used.
 if [ "$JEDI_COMPILER" = "gcc" ] && [ -f "${JEDI_BUNDLE_DIR}/${TRIGGER_REPO}/.codecov.yml" ]; then
     bash <(curl -s https://codecov.io/bash) -t 53f87271-b490-453c-b891-afd39cb658af -R "${JEDI_BUNDLE_DIR}/${TRIGGER_REPO}"
 fi
 
+util.status_log_event run complete
 util.evaluate_debug_timer_then_cleanup
 echo "test complete"
