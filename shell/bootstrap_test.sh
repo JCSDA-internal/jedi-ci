@@ -62,14 +62,6 @@ cd $WORKDIR
 
 export JEDI_BUNDLE_DIR="${WORKDIR}/bundle"
 
-# Download and export the CRTM binary files tarball. This is done before the
-# first use of git credentials to prevent the download from allowing a
-# credential timeout during the ecbuild step.
-export CRTM_BINARY_FILES_TARBALL="${WORKDIR}/crtm_coeffs.tgz"
-wget --no-verbose -O get_crtm_tarball.sh https://raw.githubusercontent.com/JCSDA/CRTMv3/refs/heads/develop/Get_CRTM_Binary_Files.sh
-chmod +x get_crtm_tarball.sh
-./get_crtm_tarball.sh -d "${CRTM_BINARY_FILES_TARBALL}"
-
 echo "Starting tests."
 $WORKDIR/bundle/jedi_ci_resources/${TEST_SCRIPT} 2>&1 | tee /tmp/build_logs.txt &
 TEST_PID=$!
