@@ -9,7 +9,10 @@ export SKIP_GITHUB_CHECK_RUNS='no'
 export CI_SCRIPTS_DIR=/workdir/bundle/jedi_ci_resources
 
 # ecbuild expects this to be set; various build templates are stored here.
-export jedi_cmake_ROOT=/opt/view
+# In spack-stack 2.2+ images the jedi-cmake module sets it.
+if [ -d /opt/view ]; then
+    export jedi_cmake_ROOT=/opt/view
+fi
 
 # Additional exports for running OpenMPI MPI jobs as root
 # and with more resources than available
@@ -92,7 +95,9 @@ else
 fi
 
 # https://github.com/JCSDA-internal/mpas-jedi/issues/919
-rm -vf `find /opt/view/bin -iname '*esmf*'`
-rm -vf `find /opt/view/lib -iname '*esmf*'`
-rm -vf `find /opt/view/include -iname '*esmf*'`
-rm -vf `find /opt/view/cmake -iname '*esmf*'`
+if [ -d /opt/view ]; then
+    rm -vf `find /opt/view/bin -iname '*esmf*'`
+    rm -vf `find /opt/view/lib -iname '*esmf*'`
+    rm -vf `find /opt/view/include -iname '*esmf*'`
+    rm -vf `find /opt/view/cmake -iname '*esmf*'`
+fi
