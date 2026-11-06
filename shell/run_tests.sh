@@ -143,6 +143,7 @@ sccache --start-server
 
 # Temporary bugfix; update awscrt because the spack-provded version is too old.
 # BUG: https://github.com/JCSDA-internal/jedi-ci/issues/50
+# CI_SPACKSTACK_22: images ignore this upgrade; the module's PYTHONPATH wins.
 if [ -d /opt/view ]; then
     pip install --upgrade awscrt
 fi
