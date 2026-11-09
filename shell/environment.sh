@@ -93,3 +93,12 @@ if [ -n "$GITHUB_APP_PRIVATE_KEY" ]; then
 else
     echo "No value for \$GITHUB_APP_PRIVATE_KEY; skipping app auth config"
 fi
+
+# CI_SPACKSTACK_22: images have no /opt/view; remove with the old images.
+# https://github.com/JCSDA-internal/mpas-jedi/issues/919
+if [ -d /opt/view ]; then
+    rm -vf `find /opt/view/bin -iname '*esmf*'`
+    rm -vf `find /opt/view/lib -iname '*esmf*'`
+    rm -vf `find /opt/view/include -iname '*esmf*'`
+    rm -vf `find /opt/view/cmake -iname '*esmf*'`
+fi
