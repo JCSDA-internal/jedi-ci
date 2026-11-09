@@ -504,6 +504,9 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
@@ -553,6 +556,9 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
@@ -602,6 +608,9 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
@@ -653,6 +662,9 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
@@ -702,6 +714,9 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
@@ -751,6 +766,9 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
