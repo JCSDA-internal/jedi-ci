@@ -1,5 +1,12 @@
 #!/bin/bash
-source /opt/spack-environment/activate.sh
+# CI_SPACKSTACK_22: images use modules instead of a spack environment view.
+if [ -f /opt/spack-environment/activate.sh ]; then
+    source /opt/spack-environment/activate.sh
+else
+    load_jedi_bundle_env
+    module load jq py-ansi2html py-pygithub >/dev/null 2>&1
+    module list
+fi
 
 # Directory of this script.
 export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
