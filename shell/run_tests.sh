@@ -217,7 +217,7 @@ ecbuild \
       -DBUILD_ROPP=ON \
       -DBUILD_RTTOV=ON \
       -DBUILD_OASIM=ON \
-      "${COMPILER_FLAGS[@]}" "${JEDI_BUNDLE_DIR}"
+      "${COMPILER_FLAGS[@]}" "${JEDI_BUNDLE_DIR}" 2>&1 | tee "${BUILD_DIR}/log.ecbuild"
 
 if [ $? -ne 0 ]; then
     util.status_log_event configure failure "Bundle configuration failed"
