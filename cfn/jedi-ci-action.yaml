@@ -463,6 +463,10 @@ Resources:
         LaunchTemplate:
           LaunchTemplateId: !Ref EC2LaunchTemplate
           Version: !GetAtt EC2LaunchTemplate.LatestVersionNumber
+        # Amazon Linux 2023 host (kernel 6.1). The AL2 default lacks openat2,
+        # which tar in the Ubuntu 26.04 based spack-stack 2.2 images needs.
+        Ec2Configuration:
+          - ImageType: ECS_AL2023
         # By setting MinvCpus to zero, batch is allowed to tear down all EC2
         # instances that are not in use. If this number is larger than 0, it
         # will maintain at enough instances to meet the minimum. The parameter
@@ -504,12 +508,16 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
+          # CI_SPACKSTACK_22: images have no activate.sh; load modules to get aws.
+          - "if [ -f /opt/spack-environment/activate.sh ]; then source /opt/spack-environment/activate.sh; else load_jedi_bundle_env; fi && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -553,12 +561,16 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
+          # CI_SPACKSTACK_22: images have no activate.sh; load modules to get aws.
+          - "if [ -f /opt/spack-environment/activate.sh ]; then source /opt/spack-environment/activate.sh; else load_jedi_bundle_env; fi && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -602,12 +614,16 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
+          # CI_SPACKSTACK_22: images have no activate.sh; load modules to get aws.
+          - "if [ -f /opt/spack-environment/activate.sh ]; then source /opt/spack-environment/activate.sh; else load_jedi_bundle_env; fi && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -653,12 +669,16 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
+          # CI_SPACKSTACK_22: images have no activate.sh; load modules to get aws.
+          - "if [ -f /opt/spack-environment/activate.sh ]; then source /opt/spack-environment/activate.sh; else load_jedi_bundle_env; fi && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -702,12 +722,16 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
+          # CI_SPACKSTACK_22: images have no activate.sh; load modules to get aws.
+          - "if [ -f /opt/spack-environment/activate.sh ]; then source /opt/spack-environment/activate.sh; else load_jedi_bundle_env; fi && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
@@ -751,12 +775,16 @@ Resources:
           - Name: stack
             SoftLimit: 67092480
             HardLimit: 67092480
+        # Intel MPI needs more than the 64 MB /dev/shm default (CI peak ~100 MB).
+        LinuxParameters:
+          SharedMemorySize: 1024
         ExecutionRoleArn: !Ref BatchBuildContainerRoleARN
         JobRoleArn: !Ref BatchBuildContainerRoleARN
         Command:
           - "bash"
           - "-c"
-          - "source /opt/spack-environment/activate.sh && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
+          # CI_SPACKSTACK_22: images have no activate.sh; load modules to get aws.
+          - "if [ -f /opt/spack-environment/activate.sh ]; then source /opt/spack-environment/activate.sh; else load_jedi_bundle_env; fi && set -x && mkdir /workdir && aws s3 cp $CONFIGURED_BUNDLE_TARBALL_S3 /workdir/bundle.tar.gz && mkdir -p /workdir/bundle && tar -xzf /workdir/bundle.tar.gz --strip-components=1 -C /workdir/bundle && chmod +x /workdir/bundle/jedi_ci_resources/bootstrap_test.sh && /workdir/bundle/jedi_ci_resources/bootstrap_test.sh"
         Environment:
           - Name: CACHE_BUCKET
             Value: !Ref CachingBucketName
