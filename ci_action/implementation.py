@@ -16,7 +16,7 @@ from ci_action.library import pr_resolve
 
 import pprint
 
-BUILD_ENVIRONMENTS = ['gcc', 'intel', 'gcc11']
+BUILD_ENVIRONMENTS = ['gcc', 'intel']
 
 LOG = logging.getLogger("implementation")
 
