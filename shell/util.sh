@@ -300,6 +300,9 @@ util.status_log_event() {
     local ts
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf "  - " >> "${STATUS_LOG}"
+    if [ "${event}" = "configure" && "${status}" == "success" ]; then
+        # call a script that reads log.ecbuild and produces a build manifest whose output is a 1-line json string"
+    fi
     jq -cn --arg time "${ts}" --arg event "${event}" --arg status "${status}" --arg detail "${detail}" \
         '{time: $time, event: $event, status: $status, detail: $detail}' >> "${STATUS_LOG}"
 }
